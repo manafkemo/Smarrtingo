@@ -1,0 +1,83 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# Visual Studio Code related
+.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins-dependencies
+.flutter-plugins
+local.properties
+.pub-cache/
+.pub/
+/build/
+/coverage/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio build artifacts
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# Environment variables & Secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.secrets
+secrets.xml
+
+# Signing files
+*.jks
+*.keystore
+*.p12
+*.key
+*.pem
+/android/key.properties
+
+# Service accounts
+*-service-account.json
+
+# iOS/macOS specifics
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+ios/Flutter/App.framework
+ios/Flutter/App.podspec
+macos/Flutter/Generated.xcconfig
+macos/Flutter/ephemeral/
+
+# Google Services (Firebase)
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+
+# Project-specific analysis logs
+analysis*.txt
+analyze*.txt
+*.iml
+smart_todo_app.iml

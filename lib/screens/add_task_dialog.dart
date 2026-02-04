@@ -36,7 +36,9 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
   // New fields
   List<String> _mediaPaths = [];
   List<SubTask> _subtasks = [];
+  List<SubTask> _subtasks = [];
   final _subtaskController = TextEditingController();
+  final FocusNode _subtaskFocusNode = FocusNode();
   final ImagePicker _picker = ImagePicker();
 
   bool get _isEditing => widget.taskToEdit != null;
@@ -65,6 +67,7 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
     _titleController.dispose();
     _descriptionController.dispose();
     _subtaskController.dispose();
+    _subtaskFocusNode.dispose();
     super.dispose();
   }
 
@@ -511,11 +514,18 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
                           Expanded(
                             child: TextField(
                               controller: _subtaskController,
+                              focusNode: _subtaskFocusNode,
+                              textInputAction: TextInputAction.newline,
                               decoration: const InputDecoration(
                                 hintText: 'Add a subtask...',
                                 isDense: true,
                               ),
-                              onSubmitted: (_) => _addSubtask(),
+                              onSubmitted: (_) {
+                                _addSubtask();
+                                WidgetsBinding.instance.addPostFrameCallback((_) {
+                                  _subtaskFocusNode.requestFocus();
+                                });
+                              },
                             ),
                           ),
                           IconButton(
@@ -829,215 +839,101 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
 
   void _showCategoryPicker() {
     final taskProvider = Provider.of<TaskProvider>(context, listen: false);
-    
+
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      backgroundColor: Colors.white,
-      builder: (bottomSheetContext) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            final categories = taskProvider.categories;
-            
-            return DraggableScrollableSheet(
-              initialChildSize: 0.6,
-              minChildSize: 0.4,
-              maxChildSize: 0.85,
-              expand: false,
-              builder: (context, scrollController) {
-                return Column(
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Select Category', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F5257))),
+            const SizedBox(height: 24),
+            ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.5),
+              child: SingleChildScrollView(
+                child: Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  alignment: WrapAlignment.center,
                   children: [
-                    // Handle bar
-                    Container(
-                      margin: const EdgeInsets.only(top: 12),
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[300],
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                    
-                    // Header
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'Select Category',
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF0F5257),
-                            ),
+                    ...taskProvider.categories.map((cat) => InkWell(
+                      onTap: () {
+                        setState(() => _selectedCategory = cat);
+                        Navigator.pop(context);
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: const Color(0xFF0F5257),
+                            width: 1.5,
                           ),
-                          // Add new category button
-                          InkWell(
-                            onTap: () async {
-                              Navigator.pop(bottomSheetContext);
-                              await showDialog(
-                                context: this.context,
-                                builder: (ctx) => const AddCategoryScreen(),
-                              );
-                              // Refresh after adding
-                              setState(() {});
-                            },
-                            borderRadius: BorderRadius.circular(12),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFC8F3F0),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.add, size: 18, color: Color(0xFF0F5257)),
-                                  SizedBox(width: 4),
-                                  Text(
-                                    'New',
-                                    style: TextStyle(
-                                      color: Color(0xFF0F5257),
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
+                        ),
+                        child: Text(
+                          cat.name,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF0F5257),
                           ),
-                        ],
-                      ),
-                    ),
-                    
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
-                      child: Text(
-                        'Tap to select • Long-press to edit',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[500],
                         ),
                       ),
-                    ),
-                    
-                    const SizedBox(height: 16),
-                    
-                    // Category Grid
-                    Expanded(
-                      child: GridView.builder(
-                        controller: scrollController,
-                        padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          childAspectRatio: 2.2,
-                          mainAxisSpacing: 12,
-                          crossAxisSpacing: 12,
+                    )),
+                    // New Category Button as a Chip
+                    InkWell(
+                      onTap: () async {
+                        Navigator.pop(context);
+                        await showDialog(
+                          context: this.context,
+                          builder: (ctx) => const AddCategoryScreen(),
+                        );
+                        setState(() {});
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFC8F3F0),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: const Color(0xFF0F5257),
+                            width: 1.5,
+                          ),
                         ),
-                        itemCount: categories.length,
-                        itemBuilder: (context, index) {
-                          final category = categories[index];
-                          final isSelected = _selectedCategory.id == category.id;
-                          
-                          return GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _selectedCategory = category;
-                              });
-                              Navigator.pop(bottomSheetContext);
-                            },
-                            onLongPress: () {
-                              // Prevent editing system categories
-                              if ([TaskCategory.completed.id, TaskCategory.today.id].contains(category.id)) {
-                                ScaffoldMessenger.of(this.context).showSnackBar(
-                                  const SnackBar(content: Text('System categories cannot be edited')),
-                                );
-                                return;
-                              }
-                              
-                              Navigator.pop(bottomSheetContext);
-                              showDialog(
-                                context: this.context,
-                                builder: (ctx) => AddCategoryScreen(categoryToEdit: category),
-                              ).then((_) {
-                                setState(() {});
-                              });
-                            },
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              decoration: BoxDecoration(
-                                color: isSelected 
-                                    ? category.color.withValues(alpha: 0.2)
-                                    : Colors.grey[50],
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: isSelected ? category.color : Colors.grey[200]!,
-                                  width: isSelected ? 2 : 1,
-                                ),
-                                boxShadow: isSelected ? [
-                                  BoxShadow(
-                                    color: category.color.withValues(alpha: 0.2),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ] : null,
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                child: Row(
-                                  children: [
-                                    // Icon with colored background
-                                    Container(
-                                      width: 36,
-                                      height: 36,
-                                      decoration: BoxDecoration(
-                                        color: category.color.withValues(alpha: 0.15),
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: Icon(
-                                        category.icon,
-                                        size: 20,
-                                        color: category.color,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: Text(
-                                        category.name,
-                                        style: TextStyle(
-                                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                                          fontSize: 13,
-                                          color: isSelected ? category.color : Colors.black87,
-                                        ),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                    if (isSelected)
-                                      Icon(
-                                        Icons.check_circle,
-                                        size: 20,
-                                        color: category.color,
-                                      ),
-                                  ],
-                                ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.add, size: 16, color: Color(0xFF0F5257)),
+                            SizedBox(width: 4),
+                            Text(
+                              'New',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF0F5257),
                               ),
                             ),
-                          );
-                        },
+                          ],
+                        ),
                       ),
                     ),
                   ],
-                );
-              },
-            );
-          },
-        );
-      },
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -147,8 +147,8 @@ class _TaskTileState extends State<TaskTile> with SingleTickerProviderStateMixin
             context: context,
             isScrollControlled: true,
             backgroundColor: Colors.transparent,
-            builder: (context) => Padding(
-              padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+            builder: (context) => SizedBox(
+              height: MediaQuery.of(context).size.height * 0.85,
               child: TaskDetailSheet(task: widget.task),
             ),
           );

@@ -379,7 +379,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
              // height: height, 
              child: SizedBox(
                height: height > 40 ? height : 40, // Min height
-               child: CalendarTaskBlock(task: task),
+               child: CalendarTaskBlock(
+                  key: ValueKey('${task.id}_${task.category.id}'),
+                  task: task,
+                ),
              ),
            ),
          );

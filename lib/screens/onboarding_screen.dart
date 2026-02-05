@@ -66,27 +66,27 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final List<Map<String, String>> _pages = [
     {
       'title': 'AI Breakdown Ideas',
-      'body': 'Let AI help you deconstruct complex goals into manageable steps.',
+      'body': 'Transform the impossible into the inevitable. Let AI break down your mountain into a climbable path.',
       'image': 'AI_break_down_ideas.png',
     },
     {
       'title': 'To-Do List',
-      'body': 'Stay organized and keep track of your daily tasks effortlessly.',
+      'body': 'Conquer your to-do list and master your schedule with zero friction.',
       'image': 'to_do_list.png',
     },
     {
       'title': 'Calendar View',
-      'body': 'Visualize your schedule and plan ahead with the calendar view.',
+      'body': 'Map out your success. Visualize your entire month and plan strategically with the calendar view.',
       'image': 'calender_view.png',
     },
     {
       'title': 'Habit Tracker',
-      'body': 'Build good habits and track your consistency over time.',
+      'body': 'Forge unbreakable habits and visualize your unstoppable momentum over time.',
       'image': 'habit_tracker.png',
     },
     {
       'title': 'Pomodoro Timer',
-      'body': 'Boost your productivity with focused work sessions using the Pomodoro technique.',
+      'body': 'Master your focus and unlock peak productivity with the Pomodoro Timer.',
       'image': 'pomodoro_timer.png',
     },
   ];

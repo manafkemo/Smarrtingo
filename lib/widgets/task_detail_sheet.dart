@@ -7,6 +7,7 @@ import '../utils/theme.dart';
 import 'dart:io';
 import 'dart:async';
 import 'package:image_picker/image_picker.dart';
+import 'task_options_sheet.dart';
 
 class TaskDetailSheet extends StatefulWidget {
   final Task task;
@@ -23,12 +24,13 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
   late TaskCategory _selectedCategory;
   late TaskPriority _selectedPriority;
   late List<SubTask> _subtasks;
+  late List<FocusNode> _subtaskFocusNodes;
   late List<String> _mediaPaths;
   bool _isCompleted = false;
   bool _areSubtasksVisible = false;
   Timer? _debounceTimer;
-  final TextEditingController _newSubtaskController = TextEditingController();
-  final FocusNode _subtaskFocusNode = FocusNode();
+
+
 
   @override
   void initState() {
@@ -38,6 +40,11 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
     _selectedCategory = widget.task.category;
     _selectedPriority = widget.task.priority;
     _subtasks = List.from(widget.task.subtasks);
+    _subtaskFocusNodes = List.generate(_subtasks.length, (index) {
+      final node = FocusNode();
+      node.addListener(() => _checkEmptySubtask(node));
+      return node;
+    });
     _mediaPaths = List.from(widget.task.mediaPaths);
     _isCompleted = widget.task.isCompleted;
     _areSubtasksVisible = widget.task.subtasks.isNotEmpty;
@@ -48,8 +55,9 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
     _debounceTimer?.cancel();
     _titleController.dispose();
     _descriptionController.dispose();
-    _newSubtaskController.dispose();
-    _subtaskFocusNode.dispose();
+    for (var node in _subtaskFocusNodes) {
+      node.dispose();
+    }
     super.dispose();
   }
 
@@ -85,6 +93,24 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
       });
       _updateTask();
     }
+  }
+
+  void _checkEmptySubtask(FocusNode node) {
+    if (!node.hasFocus) {
+      final index = _subtaskFocusNodes.indexOf(node);
+      if (index != -1 && _subtasks[index].title.trim().isEmpty) {
+        _removeSubtask(index);
+      }
+    }
+  }
+
+  void _removeSubtask(int index) {
+    setState(() {
+      _subtasks.removeAt(index);
+      _subtaskFocusNodes[index].dispose();
+      _subtaskFocusNodes.removeAt(index);
+    });
+    _updateTask();
   }
 
   @override
@@ -125,7 +151,16 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
                 const Spacer(),
                 _buildPriorityFlag(),
                 const SizedBox(width: 20),
-                const Icon(Icons.more_vert_rounded, color: Color(0xFF8B9E9E)),
+                GestureDetector(
+                  onTap: () {
+                    showModalBottomSheet(
+                      context: context,
+                      backgroundColor: Colors.transparent,
+                      builder: (context) => const TaskOptionsSheet(),
+                    );
+                  },
+                  child: const Icon(Icons.more_vert_rounded, color: Color(0xFF8B9E9E)),
+                ),
               ],
             ),
             const SizedBox(height: 24),
@@ -189,7 +224,7 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
               maxLines: null,
               style: const TextStyle(
                 fontSize: 14,
-                color: Colors.blueGrey,
+                color: Color(0xFF2C2C2C),
                 height: 1.5,
               ),
               decoration: const InputDecoration(
@@ -211,6 +246,7 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
                 final index = entry.key;
                 final subtask = entry.value;
                 return Padding(
+                  key: ValueKey(subtask.id), // Add Key for proper state management
                   padding: const EdgeInsets.only(bottom: 12),
                   child: Row(
                     children: [
@@ -225,7 +261,7 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
                           width: 22,
                           height: 22,
                           decoration: BoxDecoration(
-                            shape: BoxShape.circle,
+                            borderRadius: BorderRadius.circular(6), // Rounded square
                             border: Border.all(
                               color: const Color(0xFFD1F2ED),
                               width: 2,
@@ -233,7 +269,7 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
                             color: subtask.isCompleted ? const Color(0xFFD1F2ED) : Colors.transparent,
                           ),
                           child: subtask.isCompleted
-                              ? const Icon(Icons.check, size: 14, color: Color(0xFF0F5257))
+                              ? const Icon(Icons.check, size: 16, color: Color(0xFF0F5257))
                               : null,
                         ),
                       ),
@@ -241,20 +277,24 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
                       Expanded(
                         child: TextFormField(
                           initialValue: subtask.title,
+                          focusNode: _subtaskFocusNodes[index],
                           style: TextStyle(
                             fontSize: 14,
                             color: subtask.isCompleted ? const Color(0xFFACB9B9) : const Color(0xFF0F5257),
                             decoration: subtask.isCompleted ? TextDecoration.lineThrough : null,
                           ),
                           decoration: const InputDecoration(
-                            border: InputBorder.none,
-                            focusedBorder: InputBorder.none,
-                            enabledBorder: InputBorder.none,
-                            errorBorder: InputBorder.none,
-                            disabledBorder: InputBorder.none,
-                            contentPadding: EdgeInsets.zero,
                             isDense: true,
-                            filled: false,
+                            contentPadding: EdgeInsets.only(bottom: 8, top: 0), // Adjust padding
+                            enabledBorder: UnderlineInputBorder(
+                              borderSide: BorderSide(color: Color(0xFFE8EDED), width: 1),
+                            ),
+                            focusedBorder: UnderlineInputBorder(
+                              borderSide: BorderSide(color: Color(0xFF0F5257), width: 1),
+                            ),
+                            border: UnderlineInputBorder(
+                               borderSide: BorderSide(color: Color(0xFFE8EDED)),
+                            ),
                           ),
                           onChanged: (val) {
                              _subtasks[index] = subtask.copyWith(title: val);
@@ -262,11 +302,10 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
                           },
                           onFieldSubmitted: (val) {
                             if (val.trim().isEmpty) {
-                              setState(() {
-                                _subtasks.removeAt(index);
-                              });
+                              _removeSubtask(index);
+                            } else {
+                              _updateTask(); // Immediate save on Enter
                             }
-                            _updateTask(); // Immediate save on Enter
                           },
                         ),
                       ),
@@ -275,58 +314,63 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
                 );
               }),
 
-              // Add more subtasks field
+              // "Add Subtask" Button
               Padding(
                 padding: const EdgeInsets.only(bottom: 20),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 22,
-                      height: 22,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: const Color(0xFFD1F2ED),
-                          width: 2,
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      final newNode = FocusNode();
+                      newNode.addListener(() => _checkEmptySubtask(newNode));
+                      _subtaskFocusNodes.add(newNode);
+                      _subtasks.add(SubTask(
+                        id: DateTime.now().millisecondsSinceEpoch.toString(),
+                        title: '',
+                        isCompleted: false,
+                      ));
+                      // Ensure subtasks are visible if one is added
+                      _areSubtasksVisible = true;
+                    });
+                     // Move focus to the new node after build
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (_subtaskFocusNodes.isNotEmpty) {
+                        _subtaskFocusNodes.last.requestFocus();
+                      }
+                    });
+                  },
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 22,
+                        height: 22,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(6), // Rounded square for add button too
+                          border: Border.all(
+                            color: const Color(0xFFD1F2ED),
+                            width: 2,
+                          ),
+                        ),
+                        child: const Icon(Icons.add, size: 16, color: Color(0xFF0F5257)),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded( // Expand to allow full width underline if needed for "Add Step", though usually just text
+                        child: Container(
+                          decoration: const BoxDecoration(
+                            border: Border(bottom: BorderSide(color: Color(0xFFE8EDED), width: 1))
+                          ),
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: const Text(
+                            'Add Step',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Color(0xFF8B9E9E),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextField(
-                        controller: _newSubtaskController,
-                        focusNode: _subtaskFocusNode,
-                        textInputAction: TextInputAction.newline, // Keep keyboard open
-                        style: const TextStyle(fontSize: 14, color: Color(0xFF536969)),
-                        decoration: const InputDecoration(
-                          filled: false,
-                          border: InputBorder.none,
-                          focusedBorder: InputBorder.none,
-                          enabledBorder: InputBorder.none,
-                          contentPadding: EdgeInsets.zero,
-                          hintText: 'What Is Your Sub-Task?', // Match user image content placeholder
-                          hintStyle: TextStyle(color: Color(0xFFD9F4F0)),
-                        ),
-                        onSubmitted: (val) {
-                          if (val.trim().isNotEmpty) {
-                            setState(() {
-                              _subtasks.add(SubTask(
-                                id: DateTime.now().millisecondsSinceEpoch.toString(),
-                                title: val.trim(),
-                                isCompleted: false,
-                              ));
-                              _newSubtaskController.clear();
-                            });
-                            _updateTask();
-                            // Keep focus to allow adding another subtask
-                            WidgetsBinding.instance.addPostFrameCallback((_) {
-                              _subtaskFocusNode.requestFocus();
-                            });
-                          }
-                        },
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ],

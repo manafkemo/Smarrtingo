@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart'; // For kIsWeb
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -36,9 +37,7 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
   // New fields
   List<String> _mediaPaths = [];
   List<SubTask> _subtasks = [];
-  List<SubTask> _subtasks = [];
-  final _subtaskController = TextEditingController();
-  final FocusNode _subtaskFocusNode = FocusNode();
+  late List<FocusNode> _subtaskFocusNodes;
   final ImagePicker _picker = ImagePicker();
 
   bool get _isEditing => widget.taskToEdit != null;
@@ -60,15 +59,58 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
       _mediaPaths = List.from(task.mediaPaths);
       _subtasks = List.from(task.subtasks);
     }
+    
+    // Initialize focus nodes matching subtasks
+    _subtaskFocusNodes = List.generate(_subtasks.length, (index) {
+        final node = FocusNode();
+        node.addListener(() => _checkEmptySubtask(node));
+        return node;
+    });
   }
 
   @override
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
-    _subtaskController.dispose();
-    _subtaskFocusNode.dispose();
+    for (var node in _subtaskFocusNodes) {
+      node.dispose();
+    }
     super.dispose();
+  }
+
+  void _checkEmptySubtask(FocusNode node) {
+    if (!node.hasFocus) {
+      final index = _subtaskFocusNodes.indexOf(node);
+      if (index != -1 && index < _subtasks.length && _subtasks[index].title.trim().isEmpty) {
+        _removeSubtask(index);
+      }
+    }
+  }
+
+  void _removeSubtask(int index) {
+    setState(() {
+      _subtasks.removeAt(index);
+      _subtaskFocusNodes[index].dispose();
+      _subtaskFocusNodes.removeAt(index);
+    });
+  }
+  
+  void _addSubtask() {
+    setState(() {
+      final newNode = FocusNode();
+      newNode.addListener(() => _checkEmptySubtask(newNode));
+      _subtaskFocusNodes.add(newNode);
+      _subtasks.add(SubTask(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        title: '',
+        isCompleted: false,
+      ));
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_subtaskFocusNodes.isNotEmpty) {
+        _subtaskFocusNodes.last.requestFocus();
+      }
+    });
   }
 
   void _saveTask() {
@@ -106,7 +148,8 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
 
       // Filter tasks relevant to the day and potential overlap
       final overlappingTasks = existingTasks.where((t) {
-        if (t.isCompleted) return false; 
+        if (t.isCompleted) return false;
+        if (t.id == (widget.taskToEdit?.id)) return false; 
         if (t.date.year != newTaskStart.year || 
             t.date.month != newTaskStart.month || 
             t.date.day != newTaskStart.day) {
@@ -153,6 +196,9 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
         return;
       }
 
+      // Filter valid subtasks
+      final validSubtasks = _subtasks.where((s) => s.title.trim().isNotEmpty).toList();
+
       final newTask = Task(
         id: _isEditing ? widget.taskToEdit!.id : DateTime.now().millisecondsSinceEpoch.toString(),
         title: _titleController.text,
@@ -163,8 +209,8 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
         endTime: finalEndTime,
         isCompleted: _isEditing ? widget.taskToEdit!.isCompleted : false,
         completedAt: _isEditing ? widget.taskToEdit!.completedAt : null,
-        mediaPaths: _mediaPaths,
-        subtasks: _subtasks,
+        mediaPaths: List.from(_mediaPaths),
+        subtasks: List.from(validSubtasks),
       );
 
       if (_isEditing) {
@@ -359,13 +405,22 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
                       TextFormField(
                         controller: _descriptionController,
                         maxLines: 3,
-                        decoration: InputDecoration(
-                          labelText: 'Description (Optional)',
-                          hintText: 'Add details...',
-                          prefixIcon: const Icon(Icons.description_outlined),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
+                        style: const TextStyle(
+                          color: Color(0xFF5C7882),
+                          fontSize: 18,
+                          height: 1.4,
+                        ),
+                        decoration: const InputDecoration(
+                          hintText: 'Add notes or use Smarttingo AI to break this task down into smaller actionable steps...',
+                          hintStyle: TextStyle(
+                            color: Color(0xFF8B9E9E),
+                            fontSize: 18,
+                            height: 1.4,
                           ),
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          contentPadding: EdgeInsets.zero,
                         ),
                       ),
                       const SizedBox(height: 20),
@@ -494,67 +549,110 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
 
                       const SizedBox(height: 20),
                       
-                      // Subtasks
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'Subtasks',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                          ),
-                          Text(
-                            '${_subtasks.length} items',
-                            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: _subtaskController,
-                              focusNode: _subtaskFocusNode,
-                              textInputAction: TextInputAction.newline,
-                              decoration: const InputDecoration(
-                                hintText: 'Add a subtask...',
-                                isDense: true,
-                              ),
-                              onSubmitted: (_) {
-                                _addSubtask();
-                                WidgetsBinding.instance.addPostFrameCallback((_) {
-                                  _subtaskFocusNode.requestFocus();
-                                });
-                              },
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.add_circle),
-                            onPressed: _addSubtask,
-                            color: const Color(0xFF0F5257),
-                          ),
-                        ],
-                      ),
-                      
-                      if (_subtasks.isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        ..._subtasks.asMap().entries.map((entry) {
-                           return Padding(
-                             padding: const EdgeInsets.only(bottom: 4),
-                             child: Row(
-                               children: [
-                                 const Icon(Icons.subdirectory_arrow_right, size: 16, color: Colors.grey),
-                                 const SizedBox(width: 8),
-                                 Expanded(child: Text(entry.value.title, style: const TextStyle(fontSize: 14))),
-                                 IconButton(
-                                   icon: const Icon(Icons.remove_circle_outline, size: 18, color: Colors.red),
-                                   onPressed: () => setState(() => _subtasks.removeAt(entry.key)),
+                      // Subtasks List
+                      ..._subtasks.asMap().entries.map((entry) {
+                         final index = entry.key;
+                         final subtask = entry.value;
+                         
+                         String placeholder;
+                         if (index == 0) {
+                           placeholder = 'First sub-task step';
+                         } else if (index == 1) {
+                           placeholder = 'Second sub-task step';
+                         } else {
+                           placeholder = 'Add more sub-tasks...';
+                         }
+
+                         return Padding(
+                           padding: const EdgeInsets.only(bottom: 12),
+                           child: Row(
+                             children: [
+                               // Square hollow checkbox
+                               Container(
+                                 width: 22,
+                                 height: 22,
+                                 decoration: BoxDecoration(
+                                   borderRadius: BorderRadius.circular(6),
+                                   border: Border.all(
+                                     color: const Color(0xFF90C1B9),
+                                     width: 2,
+                                   ),
                                  ),
-                               ],
+                               ),
+                               const SizedBox(width: 12),
+                               Expanded(
+                                 child: TextFormField(
+                                   initialValue: subtask.title,
+                                   focusNode: _subtaskFocusNodes[index],
+                                   style: const TextStyle(
+                                     fontSize: 16,
+                                     color: Color(0xFF5C7882),
+                                   ),
+                                   decoration: InputDecoration(
+                                     hintText: placeholder,
+                                     hintStyle: const TextStyle(color: Color(0xFFD1E0E0)),
+                                     isDense: true,
+                                     contentPadding: const EdgeInsets.only(bottom: 8),
+                                     border: const UnderlineInputBorder(
+                                       borderSide: BorderSide(color: Color(0xFFE8EDED)),
+                                     ),
+                                     enabledBorder: const UnderlineInputBorder(
+                                       borderSide: BorderSide(color: Color(0xFFE8EDED)),
+                                     ),
+                                     focusedBorder: const UnderlineInputBorder(
+                                       borderSide: BorderSide(color: Color(0xFFE8EDED)),
+                                     ),
+                                   ),
+                                   onChanged: (val) {
+                                      _subtasks[index] = subtask.copyWith(title: val);
+                                   },
+                                 ),
+                               ),
+                             ],
+                           ),
+                         );
+                      }),
+
+                      // Add Subtask Button / Placeholder
+                      GestureDetector(
+                        onTap: _addSubtask,
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 22,
+                              height: 22,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: const Color(0xFF90C1B9),
+                                  width: 2,
+                                ),
+                              ),
+                              child: const Icon(
+                                Icons.add,
+                                size: 14,
+                                color: Color(0xFF90C1B9),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                             Expanded(
+                               child: Container(
+                                 decoration: const BoxDecoration(
+                                   border: Border(bottom: BorderSide(color: Color(0xFFE8EDED), width: 1))
+                                 ),
+                                 padding: const EdgeInsets.only(bottom: 8),
+                                 child: const Text(
+                                   'Add Step',
+                                   style: TextStyle(
+                                     fontSize: 16,
+                                     color: Color(0xFF8B9E9E),
+                                   ),
+                                 ),
+                               ),
                              ),
-                           );
-                        }),
-                      ],
+                          ],
+                        ),
+                      ),
 
                       const SizedBox(height: 20),
 
@@ -586,10 +684,15 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
                                 margin: const EdgeInsets.only(left: 8),
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(8),
-                                  image: DecorationImage(
-                                    image: FileImage(File(path)),
-                                    fit: BoxFit.cover,
-                                  ),
+                                  image: kIsWeb 
+                                    ? DecorationImage(
+                                        image: NetworkImage(path),
+                                        fit: BoxFit.cover,
+                                      )
+                                    : DecorationImage(
+                                        image: FileImage(File(path)),
+                                        fit: BoxFit.cover,
+                                      ),
                                 ),
                                 child: Stack(
                                   children: [
@@ -653,17 +756,7 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
     );
   }
 
-  void _addSubtask() {
-    if (_subtaskController.text.trim().isNotEmpty) {
-      setState(() {
-        _subtasks.add(SubTask(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          title: _subtaskController.text.trim(),
-        ));
-        _subtaskController.clear();
-      });
-    }
-  }
+
 
   Widget _buildPriorityOption(TaskPriority priority, String label) {
     final isSelected = _selectedPriority == priority;
@@ -821,6 +914,15 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
           id: DateTime.now().add(Duration(milliseconds: newSubtasks.indexOf(t))).millisecondsSinceEpoch.toString(),
           title: t.toString(),
         )).toList();
+        
+        // Rebuild focus nodes
+        for (var node in _subtaskFocusNodes) node.dispose();
+        _subtaskFocusNodes = List.generate(_subtasks.length, (index) {
+            final node = FocusNode();
+            node.addListener(() => _checkEmptySubtask(node));
+            return node;
+        });
+        
         changed = true;
       }
 

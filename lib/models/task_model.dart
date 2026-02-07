@@ -303,6 +303,7 @@ class Task {
   final List<String> mediaPaths;
   final List<SubTask> subtasks;
   final RepeatConfig? repeatConfig;
+  final bool isPinned;
 
   Task({
     required this.id,
@@ -318,6 +319,7 @@ class Task {
     this.mediaPaths = const [],
     this.subtasks = const [],
     this.repeatConfig,
+    this.isPinned = false,
   }) : createdAt = createdAt ?? DateTime.now();
 
   TaskStatus get status {
@@ -347,6 +349,7 @@ class Task {
     List<SubTask>? subtasks,
     RepeatConfig? repeatConfig,
     bool clearRepeatConfig = false,
+    bool? isPinned,
   }) {
     return Task(
       id: id ?? this.id,
@@ -362,6 +365,7 @@ class Task {
       mediaPaths: mediaPaths ?? this.mediaPaths,
       subtasks: subtasks ?? this.subtasks,
       repeatConfig: clearRepeatConfig ? null : (repeatConfig ?? this.repeatConfig),
+      isPinned: isPinned ?? this.isPinned,
     );
   }
 
@@ -380,6 +384,7 @@ class Task {
       'mediaPaths': mediaPaths,
       'subtasks': subtasks.map((x) => x.toMap()).toList(),
       'repeatConfig': repeatConfig?.toMap(),
+      'isPinned': isPinned,
     };
   }
 
@@ -413,6 +418,7 @@ class Task {
       mediaPaths: List<String>.from(map['mediaPaths'] ?? []),
       subtasks: (map['subtasks'] as List<dynamic>?)?.map((x) => SubTask.fromMap(x)).toList() ?? [],
       repeatConfig: map['repeatConfig'] != null ? RepeatConfig.fromMap(map['repeatConfig']) : null,
+      isPinned: map['isPinned'] ?? false,
     );
   }
 

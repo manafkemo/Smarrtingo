@@ -204,19 +204,29 @@ class _TaskTileState extends State<TaskTile> with SingleTickerProviderStateMixin
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text(
-                              widget.task.title,
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
-                                color: widget.task.isCompleted 
-                                    ? Colors.grey 
-                                    : Colors.black,
-                                decoration: widget.task.isCompleted 
-                                    ? TextDecoration.lineThrough 
-                                    : null,
-                                decorationColor: Colors.grey,
-                              ),
+                            Row(
+                              children: [
+                                if (widget.task.isPinned == true) ...[
+                                  const Icon(Icons.push_pin_rounded, size: 14, color: Color(0xFF0F5257)),
+                                  const SizedBox(width: 6),
+                                ],
+                                Expanded(
+                                  child: Text(
+                                    widget.task.title,
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                      color: widget.task.isCompleted == true 
+                                          ? Colors.grey 
+                                          : Colors.black,
+                                      decoration: widget.task.isCompleted == true 
+                                          ? TextDecoration.lineThrough 
+                                          : null,
+                                      decorationColor: Colors.grey,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 4),
                             Row(

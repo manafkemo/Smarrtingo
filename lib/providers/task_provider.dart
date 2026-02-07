@@ -12,12 +12,22 @@ class TaskProvider extends ChangeNotifier {
   TaskCategory? _selectedCategory;
   final AudioPlayer _audioPlayer = AudioPlayer();
 
-  List<Task> get tasks => _tasks;
+  List<Task> get tasks => _sortTasks(_tasks);
   List<TaskCategory> get categories => _categories;
   TaskCategory? get selectedCategory => _selectedCategory;
 
-  List<Task> get completedTasks => _tasks.where((task) => task.isCompleted).toList();
-  List<Task> get pendingTasks => _tasks.where((task) => !task.isCompleted).toList();
+  List<Task> get completedTasks => _sortTasks(_tasks.where((task) => task.isCompleted).toList());
+  List<Task> get pendingTasks => _sortTasks(_tasks.where((task) => !task.isCompleted).toList());
+
+  List<Task> _sortTasks(List<Task> taskList) {
+    final sorted = List<Task>.from(taskList);
+    sorted.sort((a, b) {
+      if (a.isPinned == true && b.isPinned != true) return -1;
+      if (a.isPinned != true && b.isPinned == true) return 1;
+      return 0; // Keep original order otherwise
+    });
+    return sorted;
+  }
 
   // Completion percentage based on total tasks
   double get completionPercentage {
@@ -163,24 +173,25 @@ class TaskProvider extends ChangeNotifier {
 
   // Get filtered tasks based on selected category
   List<Task> get filteredTasks {
+    List<Task> result;
     if (_selectedCategory == null) {
-      return pendingTasks;
-    }
-    if (_selectedCategory!.id == TaskCategory.completed.id) {
-      return completedTasks;
-    }
-    if (_selectedCategory!.id == TaskCategory.today.id) {
+      result = pendingTasks;
+    } else if (_selectedCategory!.id == TaskCategory.completed.id) {
+      result = completedTasks;
+    } else if (_selectedCategory!.id == TaskCategory.today.id) {
       final now = DateTime.now();
-      return _tasks.where((task) => 
+      result = _tasks.where((task) => 
         task.date.year == now.year && 
         task.date.month == now.month && 
         task.date.day == now.day && 
         !task.isCompleted
       ).toList();
+    } else {
+      result = _tasks.where((task) => 
+        task.category.id == _selectedCategory!.id && !task.isCompleted
+      ).toList();
     }
-    return _tasks.where((task) => 
-      task.category.id == _selectedCategory!.id && !task.isCompleted
-    ).toList();
+    return _sortTasks(result);
   }
 
   // Set selected category filter
@@ -289,6 +300,15 @@ class TaskProvider extends ChangeNotifier {
     _tasks.removeWhere((t) => t.id == id);
     _saveTasks();
     notifyListeners();
+  }
+
+  void togglePinTask(String id) {
+    final index = _tasks.indexWhere((t) => t.id == id);
+    if (index != -1) {
+      _tasks[index] = _tasks[index].copyWith(isPinned: !_tasks[index].isPinned);
+      _saveTasks();
+      notifyListeners();
+    }
   }
 
   void toggleTaskCompletion(String id) {

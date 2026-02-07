@@ -52,6 +52,8 @@ dependencies:
   file_picker: ^8.1.7
   http: ^1.2.0
   path: ^1.9.0
+  share_plus: ^12.0.1
+  font_awesome_flutter: ^10.12.0
 
 dev_dependencies:
   flutter_test:
@@ -66,7 +68,7 @@ dev_dependencies:
   flutter_launcher_icons: ^0.13.1
 
 flutter_launcher_icons:
-  android: "launcher_icon"
+  android: true
   ios: true
   image_path: "assist/images/smarttingo-icon-medium.png"
   min_sdk_android: 21 # android min sdk min:16, default:21

@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../models/task_model.dart';
+import '../providers/task_provider.dart';
+import 'share_task_sheet.dart';
 
 class TaskOptionsSheet extends StatelessWidget {
-  const TaskOptionsSheet({super.key});
+  final Task task;
+
+  const TaskOptionsSheet({super.key, required this.task});
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +40,9 @@ class TaskOptionsSheet extends StatelessWidget {
               icon: Icons.chat_bubble_rounded,
               color: Colors.blueAccent,
               text: 'Comment',
-              onTap: () {},
+              onTap: () {
+                Navigator.pop(context);
+              },
             ),
             _buildDivider(),
             
@@ -42,15 +50,20 @@ class TaskOptionsSheet extends StatelessWidget {
               icon: Icons.play_circle_fill_rounded,
               color: Colors.redAccent,
               text: 'Start Focus',
-              onTap: () {},
+              onTap: () {
+                Navigator.pop(context);
+              },
             ),
             _buildDivider(),
   
             _buildOptionItem(
               icon: Icons.push_pin_rounded,
-              color: Colors.orange,
-              text: 'Pin',
-              onTap: () {},
+              color: task.isPinned == true ? const Color(0xFF0F5257) : Colors.orange,
+              text: task.isPinned == true ? 'Unpin' : 'Pin',
+              onTap: () {
+                Provider.of<TaskProvider>(context, listen: false).togglePinTask(task.id);
+                Navigator.pop(context);
+              },
             ),
             _buildDivider(),
   
@@ -58,7 +71,9 @@ class TaskOptionsSheet extends StatelessWidget {
               icon: Icons.save_rounded,
               color: Colors.deepPurpleAccent,
               text: 'Save As Template',
-              onTap: () {},
+              onTap: () {
+                Navigator.pop(context);
+              },
             ),
             _buildDivider(),
   
@@ -66,7 +81,15 @@ class TaskOptionsSheet extends StatelessWidget {
               icon: Icons.share_rounded,
               color: Colors.teal,
               text: 'Share',
-              onTap: () {},
+              onTap: () {
+                Navigator.pop(context); // Close Options sheet
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (context) => ShareTaskSheet(task: task),
+                );
+              },
             ),
             _buildDivider(),
   
@@ -74,7 +97,9 @@ class TaskOptionsSheet extends StatelessWidget {
               icon: Icons.archive_rounded,
               color: Colors.blueGrey,
               text: 'Archive',
-              onTap: () {},
+              onTap: () {
+                Navigator.pop(context);
+              },
             ),
             _buildDivider(),
   
@@ -83,7 +108,11 @@ class TaskOptionsSheet extends StatelessWidget {
               color: Colors.redAccent,
               text: 'Delete Task', 
               textColor: Colors.redAccent,
-              onTap: () {}, // Add delete logic call here later
+              onTap: () {
+                Provider.of<TaskProvider>(context, listen: false).deleteTask(task.id);
+                Navigator.pop(context); // Close Options sheet
+                Navigator.pop(context); // Close Detail sheet
+              },
             ),
             const SizedBox(height: 10),
           ],

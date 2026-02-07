@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart'; // For kIsWeb
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -34,9 +35,10 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
   bool _smartReminderEnabled = true;
   RepeatConfig? _repeatConfig;
   final List<String> _attachedMediaPaths = [];
-  final List<SubtaskItem> _subtasks = [];
-  bool _subtaskMode = false;
-  final TextEditingController _subtaskInputController = TextEditingController();
+  
+  // Refactored Subtasks
+  List<SubTask> _subtasks = []; 
+  List<FocusNode> _subtaskFocusNodes = [];
 
   bool get _isEditing => widget.taskToEdit != null;
 
@@ -55,6 +57,16 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
         _selectedEndTime = TimeOfDay(hour: task.endTime!.hour, minute: task.endTime!.minute);
       }
       _repeatConfig = task.repeatConfig;
+      
+      _attachedMediaPaths.addAll(task.mediaPaths);
+      
+      // Initialize subtasks and focus nodes
+      _subtasks = List.from(task.subtasks);
+      _subtaskFocusNodes = List.generate(_subtasks.length, (index) {
+          final node = FocusNode();
+          node.addListener(() => _checkEmptySubtask(node));
+          return node;
+      });
     }
   }
 
@@ -62,7 +74,45 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
+    for (var node in _subtaskFocusNodes) {
+      node.dispose();
+    }
     super.dispose();
+  }
+
+  void _checkEmptySubtask(FocusNode node) {
+    if (!node.hasFocus) {
+      final index = _subtaskFocusNodes.indexOf(node);
+      if (index != -1 && index < _subtasks.length && _subtasks[index].title.trim().isEmpty) {
+        _removeSubtask(index);
+      }
+    }
+  }
+
+  void _removeSubtask(int index) {
+    setState(() {
+      _subtasks.removeAt(index);
+      _subtaskFocusNodes[index].dispose();
+      _subtaskFocusNodes.removeAt(index);
+    });
+  }
+  
+  void _addSubtask() {
+    setState(() {
+      final newNode = FocusNode();
+      newNode.addListener(() => _checkEmptySubtask(newNode));
+      _subtaskFocusNodes.add(newNode);
+      _subtasks.add(SubTask(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        title: '',
+        isCompleted: false,
+      ));
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_subtaskFocusNodes.isNotEmpty) {
+        _subtaskFocusNodes.last.requestFocus();
+      }
+    });
   }
 
   void _saveTask() {
@@ -86,6 +136,8 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
         );
       }
 
+      final validSubtasks = _subtasks.where((s) => s.title.trim().isNotEmpty).toList();
+
       final newTask = Task(
         id: _isEditing ? widget.taskToEdit!.id : DateTime.now().millisecondsSinceEpoch.toString(),
         title: _titleController.text,
@@ -96,6 +148,8 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
         endTime: finalEndTime,
         isCompleted: _isEditing ? widget.taskToEdit!.isCompleted : false,
         repeatConfig: _repeatConfig,
+        subtasks: List.from(validSubtasks),
+        mediaPaths: List.from(_attachedMediaPaths),
       );
 
       final taskProvider = Provider.of<TaskProvider>(context, listen: false);
@@ -269,147 +323,140 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                       const SizedBox(height: 18),
 
                       // Description Input with Subtasks
-                      Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: const Color(0xFFD9F4F0),
-                            width: 1.5,
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Description text input
+                          TextField(
+                            controller: _descriptionController,
+                            maxLines: 3,
+                            style: const TextStyle(fontSize: 16, color: Color(0xFF08191C)),
+                            decoration: const InputDecoration(
+                              hintText: 'Add description...',
+                              hintStyle: TextStyle(color: Color(0xFFACB9B9), fontSize: 16),
+                              filled: false,
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.fromLTRB(0, 12, 0, 12),
+                            ),
                           ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            // Description text input
-                            TextField(
-                              controller: _descriptionController,
-                              maxLines: 3,
-                              style: const TextStyle(fontSize: 16, color: Color(0xFF08191C)),
-                              decoration: const InputDecoration(
-                                hintText: 'Add description...',
-                                hintStyle: TextStyle(color: Color(0xFFACB9B9), fontSize: 16),
-                                filled: false,
-                                border: InputBorder.none,
-                                contentPadding: EdgeInsets.fromLTRB(20, 20, 20, 12),
+                          
+                          // Subtasks list with inline editing
+                          if (_subtasks.isNotEmpty)
+                            Column(
+                              children: _subtasks.asMap().entries.map((entry) {
+                                final index = entry.key;
+                                final subtask = entry.value;
+
+                                String placeholder;
+                                if (index == 0) {
+                                  placeholder = 'First sub-task step';
+                                } else if (index == 1) {
+                                  placeholder = 'Second sub-task step';
+                                } else {
+                                  placeholder = 'Add more sub-tasks...';
+                                }
+
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: Row(
+                                    children: [
+                                      // Square hollow checkbox
+                                      Container(
+                                        width: 22,
+                                        height: 22,
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(
+                                            color: const Color(0xFF90C1B9),
+                                            width: 2,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: TextFormField(
+                                          initialValue: subtask.title,
+                                          focusNode: _subtaskFocusNodes[index],
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            color: subtask.isCompleted ? const Color(0xFFACB9B9) : const Color(0xFF536969),
+                                            decoration: subtask.isCompleted ? TextDecoration.lineThrough : null,
+                                          ),
+                                          decoration: InputDecoration(
+                                            hintText: placeholder,
+                                            hintStyle: const TextStyle(color: Color(0xFFD1E0E0)),
+                                            isDense: true,
+                                            contentPadding: const EdgeInsets.only(bottom: 8),
+                                            border: const UnderlineInputBorder(
+                                              borderSide: BorderSide(color: Color(0xFFE8EDED)),
+                                            ),
+                                            enabledBorder: const UnderlineInputBorder(
+                                              borderSide: BorderSide(color: Color(0xFFE8EDED)),
+                                            ),
+                                            focusedBorder: const UnderlineInputBorder(
+                                              borderSide: BorderSide(color: Color(0xFF0F5257)),
+                                            ),
+                                          ),
+                                          onChanged: (val) {
+                                            _subtasks[index] = subtask.copyWith(title: val);
+                                          },
+                                          onFieldSubmitted: (val) {
+                                            if (val.trim().isEmpty) {
+                                              _removeSubtask(index);
+                                            } else {
+                                               _addSubtask();
+                                            }
+                                          },
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          
+                          // "Add Step" button
+                          if (_subtasks.isNotEmpty) 
+                           GestureDetector(
+                              onTap: _addSubtask,
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 22,
+                                    height: 22,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                        color: const Color(0xFF90C1B9),
+                                        width: 2,
+                                      ),
+                                    ),
+                                    child: const Icon(
+                                      Icons.add,
+                                      size: 14,
+                                      color: Color(0xFF90C1B9),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                   Expanded(
+                                     child: Container(
+                                       decoration: const BoxDecoration(
+                                         border: Border(bottom: BorderSide(color: Color(0xFFE8EDED), width: 1))
+                                       ),
+                                       padding: const EdgeInsets.only(bottom: 8),
+                                       child: const Text(
+                                         'Add Step',
+                                         style: TextStyle(
+                                           fontSize: 16,
+                                           color: Color(0xFF8B9E9E),
+                                         ),
+                                       ),
+                                     ),
+                                   ),
+                                ],
                               ),
                             ),
-                            
-                            // Subtasks list
-                            if (_subtasks.isNotEmpty)
-                              Column(
-                                children: _subtasks.asMap().entries.map((entry) {
-                                  final index = entry.key;
-                                  final subtask = entry.value;
-                                  return Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                    child: Row(
-                                      children: [
-                                        SizedBox(
-                                          width: 24,
-                                          height: 24,
-                                          child: Checkbox(
-                                            value: subtask.isCompleted,
-                                            onChanged: (value) {
-                                              setState(() {
-                                                _subtasks[index].isCompleted = value ?? false;
-                                              });
-                                            },
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(4),
-                                            ),
-                                            side: const BorderSide(
-                                              color: Color(0xFFD9F4F0),
-                                              width: 1.5,
-                                            ),
-                                            activeColor: const Color(0xFF0F5257),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Text(
-                                            subtask.title,
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              color: subtask.isCompleted
-                                                  ? const Color(0xFFACB9B9)
-                                                  : const Color(0xFF536969),
-                                              decoration: subtask.isCompleted
-                                                  ? TextDecoration.lineThrough
-                                                  : null,
-                                            ),
-                                          ),
-                                        ),
-                                        IconButton(
-                                          icon: const Icon(Icons.close, size: 16),
-                                          color: const Color(0xFFACB9B9),
-                                          onPressed: () {
-                                            setState(() {
-                                              _subtasks.removeAt(index);
-                                            });
-                                          },
-                                          padding: EdgeInsets.zero,
-                                          constraints: const BoxConstraints(),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                }).toList(),
-                              ),
-                            
-                            // Add subtask input field (only visible in subtask mode)
-                            if (_subtaskMode)
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      width: 24,
-                                      height: 24,
-                                      decoration: BoxDecoration(
-                                        border: Border.all(
-                                          color: const Color(0xFFD9F4F0),
-                                          width: 1.5,
-                                        ),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: TextField(
-                                        controller: _subtaskInputController,
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          color: Color(0xFF536969),
-                                        ),
-                                        decoration: const InputDecoration(
-                                          hintText: 'Add sub-task...',
-                                          hintStyle: TextStyle(
-                                            color: Color(0xFFACB9B9),
-                                            fontSize: 14,
-                                          ),
-                                          filled: false,
-                                          border: InputBorder.none,
-                                          isDense: true,
-                                          contentPadding: EdgeInsets.zero,
-                                        ),
-                                        onSubmitted: (value) {
-                                          if (value.trim().isNotEmpty) {
-                                            setState(() {
-                                              _subtasks.add(SubtaskItem(
-                                                title: value.trim(),
-                                                isCompleted: false,
-                                              ));
-                                              _subtaskInputController.clear();
-                                            });
-                                          }
-                                        },
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                          ],
-                        ),
+                        ],
                       ),
                       
                       // Attachment Preview
@@ -445,12 +492,19 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                                       child: isImage
                                           ? ClipRRect(
                                               borderRadius: BorderRadius.circular(12),
-                                              child: Image.file(
-                                                File(path),
-                                                fit: BoxFit.cover,
-                                                width: 80,
-                                                height: 80,
-                                              ),
+                                              child: kIsWeb 
+                                                ? Image.network(
+                                                    path,
+                                                    fit: BoxFit.cover,
+                                                    width: 80,
+                                                    height: 80,
+                                                  )
+                                                : Image.file(
+                                                    File(path),
+                                                    fit: BoxFit.cover,
+                                                    width: 80,
+                                                    height: 80,
+                                                  ),
                                             )
                                           : const Icon(
                                               Icons.insert_drive_file,
@@ -494,11 +548,11 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                         children: [
                           _buildQuickActionButton(
                             Icons.list_alt_rounded,
-                            isSelected: _subtaskMode,
+                            isSelected: _subtasks.isNotEmpty,
                             onTap: () {
-                              setState(() {
-                                _subtaskMode = !_subtaskMode;
-                              });
+                              if (_subtasks.isEmpty) {
+                                _addSubtask();
+                              }
                             },
                           ),
                           const SizedBox(width: 12),
@@ -588,9 +642,22 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                                   if (result.containsKey('subtasks')) {
                                     final List<dynamic> subs = result['subtasks'];
                                     _subtasks.clear();
-                                    _subtasks.addAll(subs.map((t) => SubtaskItem(title: t.toString(), isCompleted: false)));
+                                    for (var node in _subtaskFocusNodes) node.dispose();
+                                    
+                                    _subtasks.addAll(subs.map((t) => SubTask(
+                                      id: DateTime.now().add(Duration(milliseconds: subs.indexOf(t))).millisecondsSinceEpoch.toString(),
+                                      title: t.toString(),
+                                      isCompleted: false,
+                                    )));
+                                    
+                                    _subtaskFocusNodes = List.generate(_subtasks.length, (index) {
+                                        final node = FocusNode();
+                                        node.addListener(() => _checkEmptySubtask(node));
+                                        return node;
+                                    });
+
                                     if (_subtasks.isNotEmpty) {
-                                      _subtaskMode = true;
+                                      // Logic update: Ensure UI shows subtasks
                                     }
                                   }
                                 });
@@ -998,12 +1065,4 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
   }
 }
 
-class SubtaskItem {
-  String title;
-  bool isCompleted;
 
-  SubtaskItem({
-    required this.title,
-    required this.isCompleted,
-  });
-}

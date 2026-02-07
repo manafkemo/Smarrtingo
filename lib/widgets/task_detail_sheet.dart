@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart'; // For kIsWeb
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -46,7 +47,7 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
       return node;
     });
     _mediaPaths = List.from(widget.task.mediaPaths);
-    _isCompleted = widget.task.isCompleted;
+    _isCompleted = widget.task.isCompleted == true;
     _areSubtasksVisible = widget.task.subtasks.isNotEmpty;
   }
 
@@ -80,6 +81,7 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
       subtasks: validSubtasks,
       mediaPaths: _mediaPaths,
       isCompleted: _isCompleted,
+      isPinned: widget.task.isPinned,
     );
     Provider.of<TaskProvider>(context, listen: false).updateTask(updatedTask);
   }
@@ -156,7 +158,7 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
                     showModalBottomSheet(
                       context: context,
                       backgroundColor: Colors.transparent,
-                      builder: (context) => const TaskOptionsSheet(),
+                      builder: (context) => TaskOptionsSheet(task: widget.task),
                     );
                   },
                   child: const Icon(Icons.more_vert_rounded, color: Color(0xFF8B9E9E)),
@@ -405,10 +407,15 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
                           Positioned.fill(
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(12),
-                              child: Image.file(
-                                File(_mediaPaths[index]),
-                                fit: BoxFit.cover,
-                              ),
+                              child: kIsWeb
+                                ? Image.network(
+                                    _mediaPaths[index],
+                                    fit: BoxFit.cover,
+                                  )
+                                : Image.file(
+                                    File(_mediaPaths[index]),
+                                    fit: BoxFit.cover,
+                                  ),
                             ),
                           ),
                           Positioned(

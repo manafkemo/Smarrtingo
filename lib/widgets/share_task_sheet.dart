@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart'; // For kIsWeb
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../models/task_model.dart';
 import '../utils/theme.dart';
+import 'package:intl/intl.dart';
 
 class ShareTaskSheet extends StatefulWidget {
   final Task task;
@@ -168,26 +169,32 @@ class _ShareTaskSheetState extends State<ShareTaskSheet> {
           const SizedBox(height: 24),
 
 
-          _buildShareOption(
-            icon: Icons.checklist_rounded,
-            title: 'As Text',
-            subtitle: 'Share a text summary of your goal',
-            onTap: _shareAsChecklist,
-          ),
-          const SizedBox(height: 12),
-          _buildShareOption(
-            icon: Icons.image_outlined,
-            title: 'As an Image',
-            subtitle: 'Branded graphic with progress ring.',
-            onTap: _shareAsImage,
-          ),
-          const SizedBox(height: 12),
-          _buildShareOption(
-            icon: Icons.link_rounded,
-            title: 'As a Link',
-            subtitle: 'Direct access to this task in Smarttingo.',
-            onTap: _shareAsLink,
-          ),
+              _buildShareOption(
+                icon: Icons.checklist_rounded,
+                title: 'As Text',
+                subtitle: 'Share a text summary of your goal',
+                iconColor: const Color(0xFF01579B),
+                backColor: const Color(0xFFE1F5FE),
+                onTap: _shareAsChecklist,
+              ),
+              const SizedBox(height: 12),
+              _buildShareOption(
+                icon: Icons.image_outlined,
+                title: 'As an Image',
+                subtitle: 'Branded graphic with progress ring.',
+                iconColor: const Color(0xFF7B1FA2),
+                backColor: const Color(0xFFF3E5F5),
+                onTap: _shareAsImage,
+              ),
+              const SizedBox(height: 12),
+              _buildShareOption(
+                icon: Icons.link_rounded,
+                title: 'As a Link',
+                subtitle: 'Direct access to this task in Smarttingo.',
+                iconColor: const Color(0xFFBF360C),
+                backColor: const Color(0xFFFFF8E1),
+                onTap: _shareAsLink,
+              ),
           
           const SizedBox(height: 32),
           const Text(
@@ -219,93 +226,155 @@ class _ShareTaskSheetState extends State<ShareTaskSheet> {
 
   Widget _buildBrandedPreview() {
     return Container(
-      width: 300,
+      width: 400, // Adjusted width for better layout
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F5257),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header: Logo + Title + Priority
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              Image.asset(
+                'assist/images/smarttingo-logo.png',
+                height: 48,
+                width: 48,
+              ),
+              const SizedBox(width: 12),
               const Text(
-                'SMARTTINGO',
+                'Smarttingo',
                 style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 2,
-                  fontSize: 12,
+                  color: Colors.black,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
-              Icon(Icons.auto_awesome, color: Colors.yellow[600], size: 16),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                decoration: BoxDecoration(
+                  color: widget.task.priority.color, // red, orange, green, gray
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  widget.task.priority.name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 32),
+          
+          // Task Title
           Text(
             widget.task.title,
             style: const TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
+              color: Colors.black,
+              fontSize: 28,
+              fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            widget.task.category.name.toUpperCase(),
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.6),
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 1,
+          const SizedBox(height: 12),
+
+          // Category Pill
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE0F2F1), // Light green box
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              widget.task.category.name,
+              style: const TextStyle(
+                color: Color(0xFF0F5257),
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
-          const SizedBox(height: 40),
-          Row(
-            children: [
-              Stack(
-                alignment: Alignment.center,
+          const SizedBox(height: 24),
+
+          // Description
+          if (widget.task.description.isNotEmpty)
+            Text(
+              widget.task.description,
+              style: const TextStyle(
+                color: Color(0xFF616161),
+                fontSize: 16,
+                height: 1.5,
+              ),
+            ),
+          const SizedBox(height: 24),
+
+          // Subtasks
+          if (widget.task.subtasks.isNotEmpty) ...[
+            ...widget.task.subtasks.map((subtask) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
                 children: [
-                  SizedBox(
-                    width: 48,
-                    height: 48,
-                    child: CircularProgressIndicator(
-                      value: widget.task.subtasks.isEmpty 
-                          ? (widget.task.isCompleted ? 1.0 : 0.0)
-                          : widget.task.subtasks.where((s) => s.isCompleted).length / widget.task.subtasks.length,
-                      strokeWidth: 6,
-                      backgroundColor: Colors.white.withValues(alpha: 0.1),
-                      valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF64FFDA)),
-                    ),
+                   Icon(
+                    subtask.isCompleted ? Icons.check_circle : Icons.radio_button_unchecked,
+                    color: const Color(0xFF2196F3),
+                    size: 20,
                   ),
-                  Text(
-                    widget.task.subtasks.isEmpty
-                        ? (widget.task.isCompleted ? '100%' : '0%')
-                        : '${((widget.task.subtasks.where((s) => s.isCompleted).length / widget.task.subtasks.length) * 100).toInt()}%',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      subtask.title,
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        decoration: subtask.isCompleted ? TextDecoration.lineThrough : null,
+                      ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(width: 16),
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'PROGRESS',
-                    style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                  ),
-                  Text(
-                    'Goal in progress',
-                    style: TextStyle(color: Color(0xFF64FFDA), fontSize: 12),
-                  ),
-                ],
+            )),
+          ],
+          
+          const SizedBox(height: 40),
+          
+          // Footer: Date + Media Count
+          Row(
+            children: [
+              const Icon(Icons.access_time, color: Color(0xFF9E9E9E), size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Due: ${DateFormat('MMM dd, yyyy').format(widget.task.date)}',
+                style: const TextStyle(
+                  color: Color(0xFF9E9E9E),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const Spacer(),
+              const Icon(Icons.attach_file, color: Color(0xFF9E9E9E), size: 20),
+              const SizedBox(width: 4),
+              Text(
+                '${widget.task.mediaPaths.length}',
+                style: const TextStyle(
+                  color: Color(0xFF9E9E9E),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
@@ -318,6 +387,8 @@ class _ShareTaskSheetState extends State<ShareTaskSheet> {
     required IconData icon,
     required String title,
     required String subtitle,
+    required Color iconColor,
+    required Color backColor,
     required VoidCallback onTap,
   }) {
     return InkWell(
@@ -334,10 +405,10 @@ class _ShareTaskSheetState extends State<ShareTaskSheet> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFFF1F7F7),
+                color: backColor,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, color: const Color(0xFF0F5257), size: 24),
+              child: Icon(icon, color: iconColor, size: 24),
             ),
             const SizedBox(width: 16),
             Expanded(

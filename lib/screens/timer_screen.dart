@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:provider/provider.dart';
 import '../widgets/pomodoro_timer.dart';
 import '../providers/timer_provider.dart';
 import 'package:confetti/confetti.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:vibration/vibration.dart';
 import 'timer_completion_screen.dart';
 
 class TimerScreen extends StatefulWidget {
@@ -71,6 +73,12 @@ class _TimerScreenState extends State<TimerScreen> with TickerProviderStateMixin
     _confettiController.play();
     _audioPlayer.stop().then((_) {
       _audioPlayer.play(AssetSource('assist/audio/done.mp3'));
+    });
+
+    // Custom vibration pattern: Vibrate for 500ms, pause for 200ms, vibrate for 500ms
+    Vibration.vibrate(pattern: [0, 500, 200, 500]).catchError((_) {
+      // Fallback to simple haptic feedback if the plugin fails or is not supported
+      HapticFeedback.vibrate();
     });
     
     // Navigate to completion screen after a short delay

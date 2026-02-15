@@ -285,7 +285,12 @@ class _HomeContentState extends State<HomeContent> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.add_task, size: 80, color: Color(0xFFC8F3F0)),
+                            Image.asset(
+                              'assist/images/smarttingo-logo.png',
+                              width: 150,
+                              height: 150,
+                              fit: BoxFit.contain,
+                            ),
                             const SizedBox(height: 16),
                             Text(
                               selectedCategory != null 

@@ -6,6 +6,7 @@ import '../providers/task_provider.dart';
 import '../utils/recurrence_utils.dart';
 
 import 'add_task_screen.dart';
+import '../widgets/task_detail_sheet.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -16,6 +17,7 @@ class CalendarScreen extends StatefulWidget {
 
 class _CalendarScreenState extends State<CalendarScreen> {
   DateTime _selectedDate = DateTime.now();
+  DateTime _displayedMonthDate = DateTime.now();
   late ScrollController _verticalScrollController;
   late ScrollController _horizontalScrollController;
   final double _hourHeight = 80.0;
@@ -30,10 +32,33 @@ class _CalendarScreenState extends State<CalendarScreen> {
     if (verticalOffset < 0) verticalOffset = 0;
     _verticalScrollController = ScrollController(initialScrollOffset: verticalOffset);
     
+    _displayedMonthDate = _selectedDate;
+    
     // Horizontal offset will be set in the first build since it needs screen width
     _horizontalScrollController = ScrollController();
+    _horizontalScrollController.addListener(_onHorizontalScroll);
     
     _initHorizontalScroll();
+  }
+
+  void _onHorizontalScroll() {
+    if (_dayHeaderWidth <= 0) return;
+
+    final scrollOffset = _horizontalScrollController.offset;
+    final screenWidth = MediaQuery.of(context).size.width;
+    
+    // Calculate the index of the day at the center of the viewport
+    final centerOffset = scrollOffset + (screenWidth / 2);
+    final centerIndex = (centerOffset / _dayHeaderWidth).floor();
+    
+    final todayAtMidnight = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+    final centerDate = todayAtMidnight.add(Duration(days: centerIndex - 500));
+
+    if (centerDate.month != _displayedMonthDate.month || centerDate.year != _displayedMonthDate.year) {
+      setState(() {
+        _displayedMonthDate = centerDate;
+      });
+    }
   }
 
   void _initHorizontalScroll() {
@@ -42,6 +67,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
          final screenWidth = MediaQuery.of(context).size.width;
          _dayHeaderWidth = screenWidth / 5;
          _horizontalScrollController.jumpTo((500 - 1) * _dayHeaderWidth);
+         
+         // After jumping, update the displayed month immediately
+         _onHorizontalScroll();
+         
          if (mounted) setState(() {});
        }
     });
@@ -57,6 +86,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     if (picked != null && picked != _selectedDate) {
       setState(() {
         _selectedDate = picked;
+        _displayedMonthDate = picked;
       });
       // Scroll to the selected date as the SECOND item
       final todayAtMidnight = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
@@ -82,7 +112,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       (index) => today.subtract(const Duration(days: 1)).add(Duration(days: index))
     );
 
-    final monthTitle = DateFormat('MMMM yyyy').format(_selectedDate);
+    final monthTitle = DateFormat('MMMM yyyy').format(_displayedMonthDate);
 
     return Scaffold(
       body: Column(
@@ -210,6 +240,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       onTap: () {
         setState(() {
           _selectedDate = date;
+          _displayedMonthDate = date;
         });
         // Also scroll to make this tapped date the SECOND item
         final todayAtMidnight = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
@@ -539,6 +570,17 @@ class _CalendarTaskBlockState extends State<CalendarTaskBlock> with SingleTicker
     return CompositedTransformTarget(
       link: _layerLink,
       child: GestureDetector(
+        onTap: () {
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: Colors.transparent,
+            builder: (context) => SizedBox(
+              height: MediaQuery.of(context).size.height * 0.85,
+              child: TaskDetailSheet(task: widget.task),
+            ),
+          );
+        },
         onLongPress: _showOverlay,
         child: _buildBlockContent(context, showMenu: false),
       ),

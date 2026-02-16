@@ -155,10 +155,20 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
                 const SizedBox(width: 20),
                 GestureDetector(
                   onTap: () {
+                    // Create a fresh task snapshot to ensure the sharing flow has the latest data
+                    final currentTask = widget.task.copyWith(
+                      title: _titleController.text,
+                      description: _descriptionController.text,
+                      category: _selectedCategory,
+                      priority: _selectedPriority,
+                      subtasks: _subtasks.where((s) => s.title.trim().isNotEmpty).toList(),
+                      mediaPaths: _mediaPaths,
+                      isCompleted: _isCompleted,
+                    );
                     showModalBottomSheet(
                       context: context,
                       backgroundColor: Colors.transparent,
-                      builder: (context) => TaskOptionsSheet(task: widget.task),
+                      builder: (context) => TaskOptionsSheet(task: currentTask),
                     );
                   },
                   child: const Icon(Icons.more_vert_rounded, color: Color(0xFF8B9E9E)),

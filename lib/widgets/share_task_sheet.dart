@@ -225,17 +225,21 @@ class _ShareTaskSheetState extends State<ShareTaskSheet> {
 }
 
   Widget _buildBrandedPreview() {
+    final double progress = widget.task.subtasks.isEmpty 
+        ? (widget.task.isCompleted ? 1.0 : 0.0)
+        : widget.task.subtasks.where((s) => s.isCompleted).length / widget.task.subtasks.length;
+
     return Container(
-      width: 400, // Adjusted width for better layout
-      padding: const EdgeInsets.all(24),
+      width: 400,
+      padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 30,
+            offset: const Offset(0, 15),
           ),
         ],
       ),
@@ -243,139 +247,271 @@ class _ShareTaskSheetState extends State<ShareTaskSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header: Logo + Title + Priority
+          // Header: Logo + Title + Progress Ring
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Image.asset(
                 'assist/images/smarttingo-logo.png',
-                height: 48,
-                width: 48,
+                height: 44,
+                width: 44,
               ),
               const SizedBox(width: 12),
-              const Text(
-                'Smarttingo',
-                style: TextStyle(
-                  color: Colors.black,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Smarttingo',
+                    style: TextStyle(
+                      color: Color(0xFF0F5257),
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  Text(
+                    'Goal Achievement',
+                    style: TextStyle(
+                      color: const Color(0xFF0F5257).withValues(alpha: 0.6),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
               const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                decoration: BoxDecoration(
-                  color: widget.task.priority.color, // red, orange, green, gray
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  widget.task.priority.name,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+              // Progress Ring
+              Stack(
+                alignment: Alignment.center,
+                children: [
+                  SizedBox(
+                    width: 48,
+                    height: 48,
+                    child: CircularProgressIndicator(
+                      value: progress,
+                      strokeWidth: 5,
+                      backgroundColor: const Color(0xFFE0F2F1),
+                      valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF0F5257)),
+                    ),
                   ),
-                ),
+                  Text(
+                    '${(progress * 100).toInt()}%',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF0F5257),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
           const SizedBox(height: 32),
           
-          // Task Title
-          Text(
-            widget.task.title,
-            style: const TextStyle(
-              color: Colors.black,
-              fontSize: 28,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Category Pill
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFFE0F2F1), // Light green box
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              widget.task.category.name,
-              style: const TextStyle(
-                color: Color(0xFF0F5257),
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
+          // Task Title & Status Badge
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.task.title,
+                      style: TextStyle(
+                        color: const Color(0xFF0F5257),
+                        fontSize: 26,
+                        fontWeight: FontWeight.w900,
+                        height: 1.2,
+                        decoration: widget.task.isCompleted ? TextDecoration.lineThrough : null,
+                        decorationThickness: 2,
+                        decorationColor: const Color(0xFF0F5257).withValues(alpha: 0.3),
+                      ),
+                    ),
+                    if (widget.task.isCompleted) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE8F5E9),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.green.shade200),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.check_circle_rounded, color: Colors.green, size: 14),
+                            SizedBox(width: 4),
+                            Text(
+                              'COMPLETED',
+                              style: TextStyle(
+                                color: Colors.green,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
-            ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          // Category & Priority Row
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F8E9),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(widget.task.category.icon, size: 14, color: const Color(0xFF0F5257)),
+                    const SizedBox(width: 6),
+                    Text(
+                      widget.task.category.name,
+                      style: const TextStyle(
+                        color: Color(0xFF0F5257),
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: widget.task.priority.color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.flag_rounded, size: 14, color: widget.task.priority.color),
+                    const SizedBox(width: 6),
+                    Text(
+                      widget.task.priority.name,
+                      style: TextStyle(
+                        color: widget.task.priority.color,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 24),
 
           // Description
-          if (widget.task.description.isNotEmpty)
+          if (widget.task.description.isNotEmpty) ...[
             Text(
               widget.task.description,
-              style: const TextStyle(
-                color: Color(0xFF616161),
-                fontSize: 16,
+              style: TextStyle(
+                color: const Color(0xFF0F5257).withValues(alpha: 0.7),
+                fontSize: 15,
                 height: 1.5,
+                fontWeight: FontWeight.w500,
               ),
             ),
-          const SizedBox(height: 24),
+            const SizedBox(height: 24),
+          ],
 
           // Subtasks
           if (widget.task.subtasks.isNotEmpty) ...[
+            const Text(
+              'STEPS TO SUCCESS',
+              style: TextStyle(
+                color: Color(0xFFB0BEC5),
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.5,
+              ),
+            ),
+            const SizedBox(height: 12),
             ...widget.task.subtasks.map((subtask) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                children: [
-                   Icon(
-                    subtask.isCompleted ? Icons.check_circle : Icons.radio_button_unchecked,
-                    color: const Color(0xFF2196F3),
-                    size: 20,
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: subtask.isCompleted ? const Color(0xFFF5F9F9) : Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: subtask.isCompleted ? Colors.transparent : const Color(0xFFE0F2F1),
+                    width: 1,
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      subtask.title,
-                      style: TextStyle(
-                        color: Colors.black,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        decoration: subtask.isCompleted ? TextDecoration.lineThrough : null,
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      subtask.isCompleted ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                      color: subtask.isCompleted ? const Color(0xFF0F5257) : const Color(0xFFB0BEC5),
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        subtask.title,
+                        style: TextStyle(
+                          color: subtask.isCompleted ? const Color(0xFF8B9E9E) : const Color(0xFF0F5257),
+                          fontSize: 14,
+                          fontWeight: subtask.isCompleted ? FontWeight.w500 : FontWeight.w700,
+                          decoration: subtask.isCompleted ? TextDecoration.lineThrough : null,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             )),
           ],
           
-          const SizedBox(height: 40),
+          const SizedBox(height: 32),
           
+          // Footer Divider
+          Container(
+            height: 1,
+            color: const Color(0xFFE0F2F1),
+          ),
+          const SizedBox(height: 20),
+
           // Footer: Date + Media Count
           Row(
             children: [
-              const Icon(Icons.access_time, color: Color(0xFF9E9E9E), size: 20),
+              const Icon(Icons.calendar_today_rounded, color: Color(0xFF8B9E9E), size: 16),
               const SizedBox(width: 8),
               Text(
-                'Due: ${DateFormat('MMM dd, yyyy').format(widget.task.date)}',
+                DateFormat('MMMM dd, yyyy').format(widget.task.date),
                 style: const TextStyle(
-                  color: Color(0xFF9E9E9E),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF8B9E9E),
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
               const Spacer(),
-              const Icon(Icons.attach_file, color: Color(0xFF9E9E9E), size: 20),
-              const SizedBox(width: 4),
-              Text(
-                '${widget.task.mediaPaths.length}',
-                style: const TextStyle(
-                  color: Color(0xFF9E9E9E),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
+              if (widget.task.mediaPaths.isNotEmpty) ...[
+                const Icon(Icons.collections_rounded, color: Color(0xFF8B9E9E), size: 16),
+                const SizedBox(width: 6),
+                Text(
+                  '${widget.task.mediaPaths.length} attachments',
+                  style: const TextStyle(
+                    color: Color(0xFF8B9E9E),
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         ],

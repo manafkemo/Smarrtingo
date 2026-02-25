@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../providers/emergency_provider.dart';
+import '../../providers/task_provider.dart';
 
 class EmergencyInputView extends StatefulWidget {
   const EmergencyInputView({super.key});
@@ -40,14 +41,12 @@ class _EmergencyInputViewState extends State<EmergencyInputView> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Icon
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE0F2F1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.psychology, color: Color(0xFF004D40), size: 32),
+                  // Logo - Bigger and without background
+                  Image.asset(
+                    'assist/images/smarttingo-logo.png',
+                    width: 100,
+                    height: 100,
+                    errorBuilder: (context, error, stackTrace) => const Icon(Icons.psychology, color: Color(0xFF004D40), size: 60),
                   ),
                   const SizedBox(height: 24),
                   
@@ -114,31 +113,45 @@ class _EmergencyInputViewState extends State<EmergencyInputView> {
                   const SizedBox(height: 12),
 
                   // "Start Emergency Mode" Button (Primary)
-                  ElevatedButton(
-                    onPressed: () {
-                      final text = _controller.text.trim();
-                      // Even if empty, we can proceed (provider handles fallback)
-                      context.read<EmergencyModeProvider>().submitInput(text);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF004D40), // Dark Teal
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      minimumSize: const Size(double.infinity, 50),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      elevation: 0,
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          "Start Emergency Mode",
-                          style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16),
+                  Consumer<EmergencyModeProvider>(
+                    builder: (context, provider, child) {
+                      return ElevatedButton(
+                        onPressed: provider.isLoading 
+                          ? null 
+                          : () {
+                              final text = _controller.text.trim();
+                              final tasks = context.read<TaskProvider>().tasks;
+                              final taskTitles = tasks.map((t) => t.title).toList();
+                              provider.submitInput(text, taskTitles);
+                            },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF004D40), // Dark Teal
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          minimumSize: const Size(double.infinity, 50),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 0,
+                          disabledBackgroundColor: const Color(0xFF004D40).withOpacity(0.6),
                         ),
-                        const SizedBox(width: 8),
-                        const Icon(Icons.arrow_forward_rounded, size: 20)
-                      ],
-                    ),
+                        child: provider.isLoading
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  "Start Emergency Mode",
+                                  style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16),
+                                ),
+                                const SizedBox(width: 8),
+                                const Icon(Icons.arrow_forward_rounded, size: 20)
+                              ],
+                            ),
+                      );
+                    },
                   ),
                 ],
               ),

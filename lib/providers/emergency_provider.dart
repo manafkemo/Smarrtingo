@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../services/gemini_service.dart';
+import 'task_provider.dart';
 
 enum EmergencyStep {
   input,
@@ -10,28 +12,72 @@ enum EmergencyStep {
 }
 
 class EmergencyModeProvider with ChangeNotifier {
+  final GeminiService _geminiService = GeminiService();
   EmergencyStep _currentStep = EmergencyStep.input;
   String _userText = '';
   String _actionToExecute = '';
+  String _durationText = '5 minutes';
+  String _completionAcknowledgment = '';
   Timer? _timer;
   Duration _remainingTime = Duration.zero;
-  final Duration _defaultDuration = const Duration(minutes: 5); 
+  bool _isLoading = false;
+  bool _wasStoppedEarly = false;
+  final Duration _defaultDuration = const Duration(minutes: 5);
 
   EmergencyStep get currentStep => _currentStep;
   String get userText => _userText;
   String get actionToExecute => _actionToExecute;
+  String get durationText => _durationText;
+  String get completionAcknowledgment => _completionAcknowledgment;
   Duration get remainingTime => _remainingTime;
+  bool get isLoading => _isLoading;
+  bool get wasStoppedEarly => _wasStoppedEarly;
 
   bool get isTimerRunning => _timer != null && _timer!.isActive;
 
   // Step 1: Input
-  void submitInput(String text) {
+  Future<void> submitInput(String text, List<String>? taskTitles) async {
     _userText = text;
-    // Simple heuristic for now: just use the text if short, or a generic placeholder
-    // In future: integrate Generative AI here
-    _actionToExecute = text.isNotEmpty ? text : "Just start somewhere."; 
-    
-    _currentStep = EmergencyStep.decision;
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final result = await _geminiService.getEmergencyAction(text, taskTitles);
+      _actionToExecute = result['action'] ?? "Just start somewhere.";
+      _durationText = result['duration'] ?? "5 minutes";
+      
+      // Parse duration to set timer
+      int minutes = 5;
+      final minutesMatch = RegExp(r'(\d+)').firstMatch(_durationText);
+      if (minutesMatch != null) {
+        minutes = int.tryParse(minutesMatch.group(1)!) ?? 5;
+      }
+      _remainingTime = Duration(minutes: minutes);
+      
+      // Directly start execution to avoid "confirmation" as per PRD "no confirmation required"
+      _currentStep = EmergencyStep.execution;
+      _startTimer();
+    } catch (e) {
+      debugPrint('Error in Emergency AI submit: $e');
+      _actionToExecute = "Take 5 minutes to clear your mind.";
+      _remainingTime = const Duration(minutes: 5);
+      _currentStep = EmergencyStep.execution;
+      _startTimer();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // Handle choice after timer ends
+  Future<void> continueSession(List<String>? taskTitles) async {
+    // Generate another single action
+    await submitInput(_actionToExecute, taskTitles);
+  }
+
+  void stopSession() {
+    _completionAcknowledgment = "Good. You started.";
+    _currentStep = EmergencyStep.completed;
     notifyListeners();
   }
 
@@ -69,6 +115,8 @@ class EmergencyModeProvider with ChangeNotifier {
 
   // Manual completion (optional "intentional gesture")
   void completeEarly() {
+    _wasStoppedEarly = true;
+    _completionAcknowledgment = "Stopping is fine. You can start again later.";
     _completeSession();
   }
 

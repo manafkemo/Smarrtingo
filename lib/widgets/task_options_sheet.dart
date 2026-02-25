@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../models/task_model.dart';
 import '../providers/task_provider.dart';
 import 'share_task_sheet.dart';
+import 'delete_confirmation_dialog.dart';
 
 class TaskOptionsSheet extends StatelessWidget {
   final Task task;
@@ -109,9 +110,16 @@ class TaskOptionsSheet extends StatelessWidget {
               text: 'Delete Task', 
               textColor: Colors.redAccent,
               onTap: () {
-                Provider.of<TaskProvider>(context, listen: false).deleteTask(task.id);
-                Navigator.pop(context); // Close Options sheet
-                Navigator.pop(context); // Close Detail sheet
+                showDialog(
+                  context: context,
+                  builder: (ctx) => DeleteConfirmationDialog(
+                    onDelete: () {
+                      Provider.of<TaskProvider>(context, listen: false).deleteTask(task.id);
+                      Navigator.pop(context); // Close Options sheet
+                      Navigator.pop(context); // Close Detail sheet
+                    },
+                  ),
+                );
               },
             ),
             const SizedBox(height: 10),

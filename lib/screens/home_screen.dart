@@ -6,6 +6,8 @@ import '../models/task_model.dart';
 import '../providers/task_provider.dart';
 import '../widgets/task_tile.dart';
 import '../widgets/category_card.dart';
+import '../widgets/delete_confirmation_dialog.dart';
+import '../widgets/task_detail_sheet.dart';
 import '../utils/theme.dart';
 import 'add_task_screen.dart';
 import 'add_category_screen.dart'; // Import the new screen
@@ -313,9 +315,14 @@ class _HomeContentState extends State<HomeContent> {
                               _confirmDeleteTask(context, task, taskProvider);
                             },
                             onEdit: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (context) => AddTaskScreen(taskToEdit: task)),
+                              showModalBottomSheet(
+                                context: context,
+                                isScrollControlled: true,
+                                backgroundColor: Colors.transparent,
+                                builder: (context) => SizedBox(
+                                  height: MediaQuery.of(context).size.height * 0.85,
+                                  child: TaskDetailSheet(task: task),
+                                ),
                               );
                             },
                           );
@@ -332,19 +339,10 @@ class _HomeContentState extends State<HomeContent> {
   void _confirmDeleteTask(BuildContext context, Task task, TaskProvider provider) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Task?'),
-        content: Text('Are you sure you want to delete "${task.title}"?'), 
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          TextButton(
-            onPressed: () {
-              provider.deleteTask(task.id);
-              Navigator.pop(ctx);
-            }, 
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
-          ),
-        ],
+      builder: (ctx) => DeleteConfirmationDialog(
+        onDelete: () {
+          provider.deleteTask(task.id);
+        },
       ),
     );
   }

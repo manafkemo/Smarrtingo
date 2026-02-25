@@ -370,14 +370,32 @@ class TaskProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> _playDoneSound() async {
+    try {
+      await _audioPlayer.stop();
+      await _audioPlayer.play(AssetSource('assist/audio/done.mp3'));
+    } catch (e) {
+      debugPrint('Error playing done sound: $e');
+    }
+  }
+
   Future<void> _playSuccessSound() async {
     try {
-      // Seek to zero and resume for instant playback (fastest)
-      await _audioPlayer.stop(); // Ensure it stops any current playback
+      await _audioPlayer.stop();
       await _audioPlayer.play(AssetSource('assist/audio/success.mp3'));
     } catch (e) {
       debugPrint('Error playing success sound: $e');
     }
+  }
+
+  // Public method to play the success sound
+  Future<void> playSuccessSound() async {
+    await _playSuccessSound();
+  }
+
+  // Public method to play the done sound specifically if needed by UI
+  Future<void> playDoneSound() async {
+    await _playDoneSound();
   }
 
   @override

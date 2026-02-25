@@ -178,35 +178,58 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
             const SizedBox(height: 24),
 
             // Date and Reminder Row
-            Row(
-              children: [
-                Container(
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: const Color(0xFFD9F4F0), width: 1.5),
+            GestureDetector(
+              onTap: () async {
+                final isMarkingAsDone = !_isCompleted;
+                setState(() => _isCompleted = isMarkingAsDone);
+                _updateTask();
+                
+                if (isMarkingAsDone) {
+                  // Play the specific success sound requested
+                  Provider.of<TaskProvider>(context, listen: false).playSuccessSound();
+                  
+                  // Wait a brief moment to show the checkbox animation before popping
+                  await Future.delayed(const Duration(milliseconds: 300));
+                  if (mounted) Navigator.pop(context);
+                }
+              },
+              child: Row(
+                children: [
+                  Container(
+                    width: 24,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: const Color(0xFFD9F4F0), width: 1.5),
+                    ),
+                    child: Checkbox(
+                      value: _isCompleted,
+                      onChanged: (val) {
+                        final newVal = val ?? false;
+                        setState(() => _isCompleted = newVal);
+                        _updateTask();
+                        if (newVal) {
+                           Provider.of<TaskProvider>(context, listen: false).playSuccessSound();
+                           Future.delayed(const Duration(milliseconds: 300), () {
+                             if (mounted) Navigator.pop(context);
+                           });
+                        }
+                      },
+                      activeColor: AppColors.primary,
+                      side: BorderSide.none,
+                    ),
                   ),
-                  child: Checkbox(
-                    value: _isCompleted,
-                    onChanged: (val) {
-                      setState(() => _isCompleted = val ?? false);
-                      _updateTask();
-                    },
-                    activeColor: AppColors.primary,
-                    side: BorderSide.none,
+                  const SizedBox(width: 12),
+                  const Text(
+                    'I have done the task.',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Color(0xFF8B9E9E),
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                const Text(
-                  'Date and Reminder',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Color(0xFF8B9E9E),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
             const SizedBox(height: 16),
 

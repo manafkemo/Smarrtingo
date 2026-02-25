@@ -194,4 +194,80 @@ CRITICAL: Return ONLY the raw JSON string. No markdown block markers.
       return [];
     }
   }
+  Future<Map<String, String>> getEmergencyAction(String? userInput, List<String>? taskTitles) async {
+    final prompt = '''
+SYSTEM ROLE:
+You are an execution coach.
+Your only goal is to force the user to start a small, concrete action immediately.
+You do not plan, explain, motivate, or optimize.
+You reduce thinking, remove choices, and give one clear action.
+
+HARD CONSTRAINTS:
+- NEVER generate long plans.
+- NEVER list multiple steps.
+- NEVER offer options or alternatives.
+- NEVER ask more than one question.
+- NEVER explain why an action is good.
+- NEVER use motivational or inspirational language.
+- NEVER mention productivity theory.
+- NEVER use emojis.
+- NEVER include extra text or encouragement.
+
+CONTEXT:
+Active Emergency Input: "${userInput ?? 'No input'}"
+Existing Tasks (Titles only): ${taskTitles?.join(', ') ?? 'None'}
+
+DECISION LOGIC:
+1. If user provided text -> generate action directly from text.
+2. Else if tasks exist -> select ONE task automatically.
+3. Else -> generate a generic grounding action (e.g., physical reset).
+
+ACTION RULES:
+- One sentence only.
+- Imperative form (command).
+- Immediately executable.
+- Require ≤ 10 minutes.
+- Have a clear stopping point.
+- NO "and".
+- NO future planning.
+- NO vague verbs ("work on", "start thinking").
+
+OUTPUT FORMAT (STRICT):
+Action:
+<one sentence command>
+
+Duration:
+<X minutes>
+
+EXAMPLE:
+Action:
+Open your notes app and write the title of the task only.
+
+Duration:
+5 minutes
+''';
+
+    try {
+      final content = [Content.text(prompt)];
+      final response = await _model.generateContent(content);
+      
+      final text = response.text ?? '';
+      final actionMatch = RegExp(r'Action:\s*(.*)', caseSensitive: false).firstMatch(text);
+      final durationMatch = RegExp(r'Duration:\s*(.*)', caseSensitive: false).firstMatch(text);
+      
+      final action = actionMatch?.group(1)?.trim() ?? "Stand up and clear your desk for 5 minutes.";
+      final duration = durationMatch?.group(1)?.trim() ?? "5 minutes";
+      
+      return {
+        'action': action,
+        'duration': duration,
+      };
+    } catch (e) {
+      debugPrint('Error getting emergency action: $e');
+      return {
+        'action': "Drink a glass of water and sit back down.",
+        'duration': "5 minutes",
+      };
+    }
+  }
 }

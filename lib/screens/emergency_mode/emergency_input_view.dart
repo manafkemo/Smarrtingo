@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../providers/emergency_provider.dart';
 import '../../providers/task_provider.dart';
+import '../../widgets/task_selection_bottom_sheet.dart';
 
 class EmergencyInputView extends StatefulWidget {
   const EmergencyInputView({super.key});
@@ -97,7 +98,16 @@ class _EmergencyInputViewState extends State<EmergencyInputView> {
                   // "Choose From Tasks" Button (Secondary)
                   OutlinedButton.icon(
                     onPressed: () {
-                      // Placeholder for future feature
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (context) => TaskSelectionBottomSheet(
+                          onTaskSelected: (task) {
+                            context.read<EmergencyModeProvider>().submitSelectedTask(task.title);
+                          },
+                        ),
+                      );
                     },
                     icon: const Icon(Icons.list, size: 20),
                     label: const Text("Choose From Tasks"),

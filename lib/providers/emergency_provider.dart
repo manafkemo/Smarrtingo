@@ -69,6 +69,41 @@ class EmergencyModeProvider with ChangeNotifier {
     }
   }
 
+  // Submit a specifically selected task title
+  Future<void> submitSelectedTask(String taskTitle) async {
+    _userText = "Task: $taskTitle";
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      // When a specific task is selected, we pass it as the main input
+      // and we don't necessarily need the rest of the task list context 
+      // as the AI should focus on this specific one.
+      final result = await _geminiService.getEmergencyAction("I am stuck on this task: $taskTitle", null);
+      _actionToExecute = result['action'] ?? "Just start somewhere.";
+      _durationText = result['duration'] ?? "5 minutes";
+      
+      int minutes = 5;
+      final minutesMatch = RegExp(r'(\d+)').firstMatch(_durationText);
+      if (minutesMatch != null) {
+        minutes = int.tryParse(minutesMatch.group(1)!) ?? 5;
+      }
+      _remainingTime = Duration(minutes: minutes);
+      
+      _currentStep = EmergencyStep.execution;
+      _startTimer();
+    } catch (e) {
+      debugPrint('Error in Emergency AI task submit: $e');
+      _actionToExecute = "Take 5 minutes to clear your mind.";
+      _remainingTime = const Duration(minutes: 5);
+      _currentStep = EmergencyStep.execution;
+      _startTimer();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   // Handle choice after timer ends
   Future<void> continueSession(List<String>? taskTitles) async {
     // Generate another single action

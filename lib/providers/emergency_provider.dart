@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/gemini_service.dart';
+import '../models/task_model.dart';
 import 'task_provider.dart';
 
 enum EmergencyStep {
@@ -23,6 +24,7 @@ class EmergencyModeProvider with ChangeNotifier {
   bool _isLoading = false;
   bool _wasStoppedEarly = false;
   final Duration _defaultDuration = const Duration(minutes: 5);
+  Task? _selectedTask;
 
   EmergencyStep get currentStep => _currentStep;
   String get userText => _userText;
@@ -32,17 +34,27 @@ class EmergencyModeProvider with ChangeNotifier {
   Duration get remainingTime => _remainingTime;
   bool get isLoading => _isLoading;
   bool get wasStoppedEarly => _wasStoppedEarly;
+  Task? get selectedTask => _selectedTask;
 
   bool get isTimerRunning => _timer != null && _timer!.isActive;
 
   // Step 1: Input
-  Future<void> submitInput(String text, List<String>? taskTitles) async {
-    _userText = text;
+  Future<void> submitInput(String? text, List<String>? taskTitles) async {
+    if (text != null && text.isNotEmpty) {
+      _userText = text;
+    } else if (_selectedTask != null) {
+      _userText = "Task: ${_selectedTask!.title}";
+    }
+    
     _isLoading = true;
     notifyListeners();
 
     try {
-      final result = await _geminiService.getEmergencyAction(text, taskTitles);
+      final inputToAI = _selectedTask != null 
+          ? "I am stuck on this task: ${_selectedTask!.title}. Description: ${_selectedTask!.description}"
+          : _userText;
+
+      final result = await _geminiService.getEmergencyAction(inputToAI, taskTitles);
       _actionToExecute = result['action'] ?? "Just start somewhere.";
       _durationText = result['duration'] ?? "5 minutes";
       
@@ -69,8 +81,16 @@ class EmergencyModeProvider with ChangeNotifier {
     }
   }
 
+  void selectTask(Task? task) {
+    _selectedTask = task;
+    notifyListeners();
+  }
+
   // Submit a specifically selected task title
-  Future<void> submitSelectedTask(String taskTitle) async {
+  Future<void> submitSelectedTask() async {
+    if (_selectedTask == null) return;
+    
+    final taskTitle = _selectedTask!.title;
     _userText = "Task: $taskTitle";
     _isLoading = true;
     notifyListeners();
@@ -79,7 +99,7 @@ class EmergencyModeProvider with ChangeNotifier {
       // When a specific task is selected, we pass it as the main input
       // and we don't necessarily need the rest of the task list context 
       // as the AI should focus on this specific one.
-      final result = await _geminiService.getEmergencyAction("I am stuck on this task: $taskTitle", null);
+      final result = await _geminiService.getEmergencyAction("I am stuck on this task: $taskTitle. Description: ${_selectedTask!.description}", null);
       _actionToExecute = result['action'] ?? "Just start somewhere.";
       _durationText = result['duration'] ?? "5 minutes";
       
@@ -162,10 +182,11 @@ class EmergencyModeProvider with ChangeNotifier {
   }
 
   void _reset() {
-     _currentStep = EmergencyStep.input;
+    _currentStep = EmergencyStep.input;
     _userText = '';
     _actionToExecute = '';
     _remainingTime = Duration.zero;
+    _selectedTask = null;
     notifyListeners();
   }
   

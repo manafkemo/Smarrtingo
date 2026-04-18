@@ -120,7 +120,7 @@ class TaskCategory {
   static const TaskCategory completed = TaskCategory(
     id: 'completed',
     name: 'Completed',
-    iconCodePoint: 0xe15d, // Icons.check_circle_outline
+    iconCodePoint: 0xe5ca, // Icons.check
     iconFontFamily: 'MaterialIcons',
     colorValue: 0xFF0F5257,
   );

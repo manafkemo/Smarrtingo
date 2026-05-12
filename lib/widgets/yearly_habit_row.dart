@@ -25,11 +25,13 @@ class YearlyHabitRow extends StatelessWidget {
             children: [
               Icon(habit.icon, color: Color(habit.colorValue), size: 24),
               const SizedBox(width: 12),
-              Text(
-                habit.name,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              Expanded(
+                child: Text(
+                  habit.name,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-              const Spacer(),
               PopupMenuButton<String>(
                   icon: Icon(Icons.more_horiz, color: Colors.grey[300]),
                   onSelected: (value) {

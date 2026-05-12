@@ -21,6 +21,7 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       backgroundColor: Colors.grey[50], // Slightly off-white for background
       appBar: AppBar(
         title: const Text('Habit Tracker', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),

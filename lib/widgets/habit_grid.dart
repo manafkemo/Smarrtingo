@@ -28,8 +28,10 @@ class HabitHeatMap extends StatelessWidget {
   }
 
   Widget _buildMonthlyCalendar(BuildContext context) {
+    final provider = Provider.of<HabitProvider>(context, listen: false);
     // Current month or target month
     final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
     final monthToShow = targetMonth ?? DateTime(now.year, now.month);
     
     final int daysInMonth = DateUtils.getDaysInMonth(monthToShow.year, monthToShow.month);
@@ -88,7 +90,7 @@ class HabitHeatMap extends StatelessWidget {
             // Don't show future days in the grid at all? Or show as empty placeholders?
             // "Future dates are visible but inactive"
             
-            return _buildCell(context, date, 20.0, isFuture, isMonthly: true);
+            return _buildCell(context, date, 20.0, isFuture, provider, today, isMonthly: true);
           },
         ),
       ],
@@ -96,6 +98,7 @@ class HabitHeatMap extends StatelessWidget {
   }
 
   Widget _buildYearlyGrid(BuildContext context) {
+    final provider = Provider.of<HabitProvider>(context, listen: false);
     // 52 Weeks, GitHub Style.
     // Scrollable horizontal.
     
@@ -184,7 +187,7 @@ class HabitHeatMap extends StatelessWidget {
                      final isFuture = date.isAfter(today);
                      return Container(
                        margin: const EdgeInsets.only(bottom: 3.0),
-                       child: _buildCell(context, date, 12.0, isFuture),
+                       child: _buildCell(context, date, 12.0, isFuture, provider, today),
                      );
                    }),
                  ),
@@ -208,11 +211,7 @@ class HabitHeatMap extends StatelessWidget {
     );
   }
 
-  Widget _buildCell(BuildContext context, DateTime date, double size, bool isFuture, {bool isMonthly = false}) {
-    final provider = Provider.of<HabitProvider>(context);
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    
+  Widget _buildCell(BuildContext context, DateTime date, double size, bool isFuture, HabitProvider provider, DateTime today, {bool isMonthly = false}) {
     final isToday = date.year == today.year && date.month == today.month && date.day == today.day;
     final opacity = isFuture ? 0.0 : provider.getOpacity(habitId, date);
     

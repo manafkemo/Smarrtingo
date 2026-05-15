@@ -73,7 +73,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.track_changes_outlined),
-            label: 'Smart Tasks',
+            label: 'Smarttingo',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.grid_view_rounded),

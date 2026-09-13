@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/habit_model.dart';
 import '../providers/habit_provider.dart';
 import '../widgets/add_habit_dialog.dart';
-import 'habit_grid.dart'; // Reusing the updated HabitHeatMap
+import 'habit_grid.dart';
 
 class MonthlyHabitCard extends StatelessWidget {
   final Habit habit;
@@ -24,42 +24,35 @@ class MonthlyHabitCard extends StatelessWidget {
     // Check completion status for today
     final provider = Provider.of<HabitProvider>(context);
     final isCompletedToday = provider.isHabitCompletedToday(habit.id);
-
-    
     final Color baseColor = Color(habit.colorValue);
     final Color tintColor = baseColor.withValues(alpha: 0.1);
 
     return Card(
       elevation: 0,
       color: Colors.white,
-      clipBehavior: Clip.antiAlias, // Important for header background
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20), // More rounded
-        side: BorderSide(color: Colors.grey.withValues(alpha: 0.1)),
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(color: Colors.grey.withValues(alpha: 0.15)),
       ),
       child: InkWell(
         onTap: () {
-           // Tap anywhere to toggle today's completion (or increment)
-           // If we follow the "max 5" rule, simple tap increments.
-           // If we want a checkmark behavior: 
-           // If not completed -> increment.
-           // If completed (reached target) -> maybe nothing or show dialog?
-           // Let's stick to incrementing progress.
-           provider.incrementProgress(habit.id, DateTime.now());
+          provider.incrementProgress(habit.id, DateTime.now());
         },
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Header with Tint
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               color: tintColor,
               child: Row(
                 children: [
                   // Icon / Checkmark Box
                   Container(
-                    width: 36,
-                    height: 36,
+                    width: 32,
+                    height: 32,
                     decoration: BoxDecoration(
                       color: isCompletedToday ? baseColor : Colors.white,
                       shape: BoxShape.circle,
@@ -69,39 +62,41 @@ class MonthlyHabitCard extends StatelessWidget {
                       child: Icon(
                         isCompletedToday ? habit.icon : Icons.check,
                         color: isCompletedToday ? Colors.white : baseColor,
-                        size: 20,
+                        size: 18,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
                   // Title & Date
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
                           habit.name,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.black87),
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87),
+                          maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                         Text(
+                        Text(
                           monthFormat.format(now),
-                          style: TextStyle(fontSize: 11, color: Colors.grey[700], fontWeight: FontWeight.w500),
+                          style: TextStyle(fontSize: 10, color: Colors.grey[700], fontWeight: FontWeight.w500),
                         ),
                       ],
                     ),
                   ),
-                 // Menu (hidden or small)
-                 PopupMenuButton<String>(
+                  // Menu
+                  PopupMenuButton<String>(
                     icon: Icon(Icons.more_horiz, color: Colors.grey[600], size: 18),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                     onSelected: (value) {
                       if (value == 'edit') {
-                          showDialog(
-                            context: context,
-                            builder: (context) => AddHabitDialog(habitToEdit: habit),
-                          );
+                        showDialog(
+                          context: context,
+                          builder: (context) => AddHabitDialog(habitToEdit: habit),
+                        );
                       } else if (value == 'delete') {
                         provider.deleteHabit(habit.id);
                       }
@@ -121,15 +116,17 @@ class MonthlyHabitCard extends StatelessWidget {
               ),
             ),
             
-            // Grid Content
+            // Grid Content (HeatMap)
             Expanded(
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-                child: HabitHeatMap(
-                  habitId: habit.id,
-                  baseColor: baseColor,
-                  isYearlyView: false,
-                  targetMonth: now,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+                child: Center(
+                  child: HabitHeatMap(
+                    habitId: habit.id,
+                    baseColor: baseColor,
+                    isYearlyView: false,
+                    targetMonth: now,
+                  ),
                 ),
               ),
             ),

@@ -10,12 +10,31 @@ class HabitProvider extends ChangeNotifier {
   List<HabitCategory> _categories = [];
   final _uuid = const Uuid();
 
+  // Fast lookup caches for high-performance rendering (O(1) lookups)
+  final Map<String, Habit> _habitMap = {};
+  final Map<String, int> _completionMap = {};
+
   List<Habit> get habits => _habits;
   List<HabitCompletion> get completions => _completions;
   List<HabitCategory> get categories => _categories;
 
   HabitProvider() {
     _loadData();
+  }
+
+  String _dateKey(String habitId, DateTime date) =>
+      "${habitId}_${date.year}_${date.month}_${date.day}";
+
+  void _rebuildFastLookup() {
+    _habitMap.clear();
+    for (final h in _habits) {
+      _habitMap[h.id] = h;
+    }
+
+    _completionMap.clear();
+    for (final c in _completions) {
+      _completionMap[_dateKey(c.habitId, c.date)] = c.currentValue;
+    }
   }
 
   // --- Persistence ---
@@ -41,6 +60,7 @@ class HabitProvider extends ChangeNotifier {
       _categories = decoded.map((item) => HabitCategory.fromMap(item)).toList();
     }
 
+    _rebuildFastLookup();
     notifyListeners();
   }
 
@@ -77,6 +97,7 @@ class HabitProvider extends ChangeNotifier {
       createdAt: DateTime.now(),
     );
     _habits.add(newHabit);
+    _habitMap[newHabit.id] = newHabit;
     _saveHabits();
     notifyListeners();
   }
@@ -85,6 +106,7 @@ class HabitProvider extends ChangeNotifier {
     final index = _habits.indexWhere((h) => h.id == habit.id);
     if (index != -1) {
       _habits[index] = habit;
+      _habitMap[habit.id] = habit;
       _saveHabits();
       notifyListeners();
     }
@@ -92,7 +114,9 @@ class HabitProvider extends ChangeNotifier {
 
   void deleteHabit(String id) {
     _habits.removeWhere((h) => h.id == id);
+    _habitMap.remove(id);
     _completions.removeWhere((c) => c.habitId == id);
+    _rebuildFastLookup();
     _saveHabits();
     _saveCompletions();
     notifyListeners();
@@ -131,6 +155,7 @@ class HabitProvider extends ChangeNotifier {
     for (int i = 0; i < _habits.length; i++) {
       if (_habits[i].category == oldName) {
         _habits[i] = _habits[i].copyWith(category: newName);
+        _habitMap[_habits[i].id] = _habits[i];
       }
     }
     _saveHabits();
@@ -150,7 +175,8 @@ class HabitProvider extends ChangeNotifier {
     // 3. Clear category from habits
     for (int i = 0; i < _habits.length; i++) {
       if (_habits[i].category == category.name) {
-        _habits[i] = _habits[i].copyWith(clearCategory: true); 
+        _habits[i] = _habits[i].copyWith(clearCategory: true);
+        _habitMap[_habits[i].id] = _habits[i];
       }
     }
     _saveHabits();
@@ -171,8 +197,10 @@ class HabitProvider extends ChangeNotifier {
         return;
     }
 
-    final habit = _habits.firstWhere((h) => h.id == habitId, orElse: () => throw Exception("Habit not found"));
+    final habit = _habitMap[habitId];
+    if (habit == null) return;
     
+    final key = _dateKey(habitId, targetDate);
     final index = _completions.indexWhere((c) => 
       c.habitId == habitId && 
       c.date.year == targetDate.year &&
@@ -184,19 +212,18 @@ class HabitProvider extends ChangeNotifier {
       // Update existing completion
       final current = _completions[index];
       if (current.currentValue < habit.dailyTarget) {
+          final updatedValue = current.currentValue + 1;
           _completions[index] = HabitCompletion(
               habitId: habitId,
               date: targetDate,
-              currentValue: current.currentValue + 1,
+              currentValue: updatedValue,
               status: CompletionStatus.completed
           );
+          _completionMap[key] = updatedValue;
       } else {
-        // If already at max, maybe we want to toggle it off? 
-        // Or for multi-completion, do we just stop? 
-        // User requirements say "If the daily target is not completed... cell remains partially filled".
-        // It doesn't explicitly say we can decrement. Let's assume toggle off if we hit max, or maybe a separate decrement?
-        // Let's implement toggle behavior: if full, reset to 0 (remove).
+        // If already at max, toggle off
         _completions.removeAt(index);
+        _completionMap.remove(key);
       }
     } else {
       // New completion
@@ -206,51 +233,37 @@ class HabitProvider extends ChangeNotifier {
         currentValue: 1,
         status: CompletionStatus.completed,
       ));
+      _completionMap[key] = 1;
     }
     _saveCompletions();
     notifyListeners();
   }
 
   int getCompletionValue(String habitId, DateTime date) {
-     final found = _completions.firstWhere((c) => 
-      c.habitId == habitId && 
-      c.date.year == date.year &&
-      c.date.month == date.month &&
-      c.date.day == date.day,
-      orElse: () => HabitCompletion(habitId: habitId, date: date, currentValue: 0, status: CompletionStatus.skipped) // treating missing as 0
-    );
-     // If not found (and thus created dummy), currentValue is 0 if we assume logic above. 
-     // Wait, the dummy in orElse has currentValue 1 by default in constructor if not specified? 
-     // I passed 0 explicitly.
-     return found.currentValue;
+     return _completionMap[_dateKey(habitId, date)] ?? 0;
   }
 
   bool isCompleted(String habitId, DateTime date) {
-     final habit = _habits.firstWhere((h) => h.id == habitId, orElse: () => throw Exception("Habit not found"));
+     final habit = _habitMap[habitId];
+     if (habit == null) return false;
      final val = getCompletionValue(habitId, date);
      return val >= habit.dailyTarget; 
   }
 
   double getOpacity(String habitId, DateTime date) {
-      final habit = _habits.firstWhere((h) => h.id == habitId, orElse: () => throw Exception("Habit not found"));
+      final habit = _habitMap[habitId];
+      if (habit == null) return 0.0;
       final val = getCompletionValue(habitId, date);
-      if (val == 0) return 0.0;
-      // "The first completion of the day appears as the habit’s color with low opacity."
-      // "When the daily target is fully completed, the color reaches full opacity."
+      if (val <= 0) return 0.0;
       if (val >= habit.dailyTarget) return 1.0;
       
-      // Proportional opacity between 0.2 and 1.0?
-      // let's say min opacity is 0.3
-      double progress = val / habit.dailyTarget;
-      // map 0..1 progress to 0.3..1.0 opacity
+      final double progress = val / habit.dailyTarget;
       return 0.3 + (0.7 * progress);
   }
 
   List<HabitCompletion> getCompletionsForHabit(String habitId) {
     return _completions.where((c) => c.habitId == habitId).toList();
   }
-  
-  // Removed GetStreak as strictly requested: "No numeric counters, streak pressure messages"
 
   // --- Helper Methods for UI ---
 
@@ -261,5 +274,4 @@ class HabitProvider extends ChangeNotifier {
   int getCompletionCountForDate(String habitId, DateTime date) {
     return getCompletionValue(habitId, date);
   }
-
 }

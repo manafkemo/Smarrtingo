@@ -108,31 +108,33 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
                 child: filteredHabits.isEmpty
                     ? const Center(child: Text("No habits found in this category"))
                     : AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 300),
+                        duration: const Duration(milliseconds: 250),
                         child: _isGridView
-                        ? GridView.builder(
-                            padding: const EdgeInsets.all(16),
-                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2, // 2 habits per row
-                              crossAxisSpacing: 16,
-                              mainAxisSpacing: 16,
-                              childAspectRatio: 0.75, // Taller cards to prevent overflow
-                            ),
-                            itemCount: filteredHabits.length,
-                            itemBuilder: (context, index) {
-                              return MonthlyHabitCard(
-                                habit: filteredHabits[index],
-                                onTap: () {},
-                              );
-                            },
-                          )
-                        : ListView.builder(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            itemCount: filteredHabits.length,
-                            itemBuilder: (context, index) {
-                              return YearlyHabitRow(habit: filteredHabits[index]);
-                            },
-                          ),
+                            ? GridView.builder(
+                                key: const ValueKey<String>('grid_view'),
+                                padding: const EdgeInsets.fromLTRB(16, 12, 16, 88),
+                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 2, // 2 habits per row
+                                  crossAxisSpacing: 12,
+                                  mainAxisSpacing: 12,
+                                  childAspectRatio: 0.72,
+                                ),
+                                itemCount: filteredHabits.length,
+                                itemBuilder: (context, index) {
+                                  return MonthlyHabitCard(
+                                    habit: filteredHabits[index],
+                                    onTap: () {},
+                                  );
+                                },
+                              )
+                            : ListView.builder(
+                                key: const ValueKey<String>('list_view'),
+                                padding: const EdgeInsets.fromLTRB(16, 12, 16, 88),
+                                itemCount: filteredHabits.length,
+                                itemBuilder: (context, index) {
+                                  return YearlyHabitRow(habit: filteredHabits[index]);
+                                },
+                              ),
                       ),
               ),
             ],

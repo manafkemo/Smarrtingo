@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -18,158 +17,107 @@ class TimerScreen extends StatefulWidget {
 }
 
 class _TimerScreenState extends State<TimerScreen> with TickerProviderStateMixin {
-  // Timer State
-  Timer? _timer;
-  Duration _duration = const Duration(minutes: 5, seconds: 0); // Default 5 min
-  Duration _remainingTime = const Duration(minutes: 5, seconds: 0);
-  bool _isRunning = false;
-  bool _isSetupMode = true;
-
   // Celebration
   late ConfettiController _confettiController;
   late AudioPlayer _audioPlayer;
+
+  // Guard so we don't fire the celebration twice.
+  bool _celebrationTriggered = false;
 
   @override
   void initState() {
     super.initState();
     _confettiController = ConfettiController(duration: const Duration(seconds: 3));
     _audioPlayer = AudioPlayer();
-    _audioPlayer.setPlayerMode(PlayerMode.lowLatency); // Low-latency mode
-    _audioPlayer.audioCache.prefix = ''; // Use custom prefix
-    _audioPlayer.setSource(AssetSource('assist/audio/done.mp3')); // Pre-load
+    _audioPlayer.setPlayerMode(PlayerMode.lowLatency);
+    _audioPlayer.audioCache.prefix = '';
+    _audioPlayer.setSource(AssetSource('assist/audio/done.mp3'));
+
+    // Hook into the provider so we are notified when the background timer ends.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final timerProvider = context.read<TimerProvider>();
+      timerProvider.onTimerDone = () {
+        if (!_celebrationTriggered && mounted) {
+          _celebrationTriggered = true;
+          _playDoneCelebration(timerProvider.totalDuration);
+        }
+      };
+    });
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    // Un-register the callback when leaving the screen.
+    final timerProvider = context.read<TimerProvider>();
+    timerProvider.onTimerDone = null;
+
     _confettiController.dispose();
     _audioPlayer.dispose();
     super.dispose();
   }
 
-  void _startTimer() {
-    setState(() {
-      _isSetupMode = false;
-      _isRunning = true;
-      _remainingTime = _duration;
-    });
-
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_remainingTime.inSeconds > 0) {
-        setState(() {
-          _remainingTime = _remainingTime - const Duration(seconds: 1);
-        });
-      } else {
-        _timer?.cancel();
-        setState(() {
-          _isRunning = false;
-        });
-        _playDoneCelebration();
-      }
-    });
-  }
-  
-  void _playDoneCelebration() {
+  void _playDoneCelebration(Duration focusedDuration) {
     _confettiController.play();
     _audioPlayer.stop().then((_) {
       _audioPlayer.play(AssetSource('assist/audio/done.mp3'));
     });
 
-    // Custom vibration pattern: Vibrate for 500ms, pause for 200ms, vibrate for 500ms
     Vibration.vibrate(pattern: [0, 500, 200, 500]).catchError((_) {
-      // Fallback to simple haptic feedback if the plugin fails or is not supported
       HapticFeedback.vibrate();
     });
-    
-    // Navigate to completion screen after a short delay
+
     Future.delayed(const Duration(milliseconds: 1000), () async {
       if (mounted) {
-         final xp = _calculateXP(_duration);
-         final result = await Navigator.push(
-           context,
-           MaterialPageRoute(
-             builder: (context) => TimerCompletionScreen(
-               focusedDuration: _duration,
-               xpEarned: xp,
-             ),
-           ),
-         );
+        final xp = _calculateXP(focusedDuration);
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => TimerCompletionScreen(
+              focusedDuration: focusedDuration,
+              xpEarned: xp,
+            ),
+          ),
+        );
 
-         if (mounted) {
-            if (result == true) {
-              // Start Break (5 min)
-              setState(() {
-                _duration = const Duration(minutes: 5);
-                _startTimer();
-              });
-            } else {
-              // Seamless restart: Reset to setup mode with same duration
-              _resetTimer();
-            }
-         }
+        if (mounted) {
+          final timerProvider = context.read<TimerProvider>();
+          if (result == true) {
+            // Start Break (5 min)
+            timerProvider.setDuration(const Duration(minutes: 5));
+            await timerProvider.startTimer();
+          } else {
+            // Reset to setup mode
+            await timerProvider.resetTimer();
+          }
+          _celebrationTriggered = false;
+        }
       }
     });
   }
-  
+
   int _calculateXP(Duration duration) {
-    // Basic calculation: 10 XP per minute
     return duration.inMinutes * 10;
   }
 
-  void _pauseTimer() {
-    _timer?.cancel();
-    setState(() {
-      _isRunning = false;
-    });
-  }
-
-  void _resumeTimer() {
-    setState(() {
-      _isRunning = true;
-    });
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_remainingTime.inSeconds > 0) {
-        setState(() {
-          _remainingTime = _remainingTime - const Duration(seconds: 1);
-        });
-      } else {
-        _timer?.cancel();
-        setState(() {
-          _isRunning = false;
-        });
-         _playDoneCelebration();
-      }
-    });
-  }
-
-  void _resetTimer() {
-    _timer?.cancel();
-    setState(() {
-      _isRunning = false;
-      _isSetupMode = true;
-      _remainingTime = _duration;
-    });
-  }
-
   Widget _buildCircleButton({required IconData icon, required VoidCallback onPressed, required Color color, required Color iconColor}) {
-      return InkWell(
-         onTap: onPressed,
-         borderRadius: BorderRadius.circular(30),
-         child: Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-               color: color,
-               shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: iconColor, size: 28),
-         ),
-      );
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(30),
+      child: Container(
+        width: 60,
+        height: 60,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: iconColor, size: 28),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final timerProvider = Provider.of<TimerProvider>(context);
+    final timerProvider = context.watch<TimerProvider>();
 
     return Scaffold(
       body: Stack(
@@ -191,7 +139,6 @@ class _TimerScreenState extends State<TimerScreen> with TickerProviderStateMixin
             ),
           ),
           // --- Decorations ---
-          // Top Left Light Blob
           Positioned(
             top: 50,
             left: -50,
@@ -199,12 +146,11 @@ class _TimerScreenState extends State<TimerScreen> with TickerProviderStateMixin
               width: 140,
               height: 140,
               decoration: BoxDecoration(
-                  color: const Color(0xFFC8F3F0).withValues(alpha: 0.8),
+                color: const Color(0xFFC8F3F0).withValues(alpha: 0.8),
                 shape: BoxShape.circle,
               ),
             ),
           ),
-          // Top Right Light Accent
           Positioned(
             top: 80,
             right: -30,
@@ -212,12 +158,11 @@ class _TimerScreenState extends State<TimerScreen> with TickerProviderStateMixin
               width: 100,
               height: 100,
               decoration: BoxDecoration(
-                  color: const Color(0xFFC8F3F0).withValues(alpha: 0.6),
+                color: const Color(0xFFC8F3F0).withValues(alpha: 0.6),
                 shape: BoxShape.circle,
               ),
             ),
           ),
-           // Bottom Left Large Light Blob
           Positioned(
             bottom: -20,
             left: -60,
@@ -225,12 +170,11 @@ class _TimerScreenState extends State<TimerScreen> with TickerProviderStateMixin
               width: 180,
               height: 180,
               decoration: BoxDecoration(
-                  color: const Color(0xFFC8F3F0).withValues(alpha: 0.8),
+                color: const Color(0xFFC8F3F0).withValues(alpha: 0.8),
                 shape: BoxShape.circle,
               ),
             ),
           ),
-          // Bottom Right Dark Arc
           Positioned(
             bottom: -60,
             right: -60,
@@ -299,27 +243,24 @@ class _TimerScreenState extends State<TimerScreen> with TickerProviderStateMixin
             ),
           ),
         ),
-        
+
         const SizedBox(height: 50),
 
         // Pomodoro Timer Widget
         PomodoroTimer(
-            duration: _remainingTime,
-            totalDuration: _duration,
-            isSetupMode: _isSetupMode,
-            onDurationChanged: (val) {
-               setState(() {
-                  _duration = val;
-                  _remainingTime = val;
-               });
-            },
-            size: 320,
+          duration: timerProvider.remainingDuration,
+          totalDuration: timerProvider.totalDuration,
+          isSetupMode: timerProvider.isSetupMode,
+          onDurationChanged: (val) {
+            timerProvider.setDuration(val);
+          },
+          size: 320,
         ),
-        
+
         const SizedBox(height: 30),
-        
+
         Text(
-          "Drag The Handle to Adjust Time",
+          'Drag The Handle to Adjust Time',
           style: TextStyle(
             color: const Color(0xFF0F5257).withValues(alpha: 0.5),
             fontSize: 16,
@@ -333,43 +274,51 @@ class _TimerScreenState extends State<TimerScreen> with TickerProviderStateMixin
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-             // Reset
+            // Reset
             Column(
               children: [
-                 _buildCircleButton(
-                    icon: Icons.replay,
-                    onPressed: _resetTimer,
-                    color: const Color(0xFFC8F3F0),
-                    iconColor: const Color(0xFF0F5257),
-                 ),
-                 const SizedBox(height: 8),
-                 Text("RESET", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF0F5257).withValues(alpha: 0.8))),
+                _buildCircleButton(
+                  icon: Icons.replay,
+                  onPressed: () => timerProvider.resetTimer(),
+                  color: const Color(0xFFC8F3F0),
+                  iconColor: const Color(0xFF0F5257),
+                ),
+                const SizedBox(height: 8),
+                Text('RESET', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF0F5257).withValues(alpha: 0.8))),
               ],
             ),
             const SizedBox(width: 40),
-            
-            // Start/Pause
+
+            // Start / Pause / Resume
             Column(
               children: [
-                 SizedBox(
+                SizedBox(
                   width: 80,
                   height: 80,
                   child: FloatingActionButton(
-                     onPressed: _isSetupMode ? _startTimer : (_isRunning ? _pauseTimer : _resumeTimer),
-                     backgroundColor: const Color(0xFF0F5257),
-                     shape: const CircleBorder(),
-                     elevation: 8,
-                     child: Icon(
-                        _isSetupMode 
-                           ? Icons.play_arrow 
-                           : (_isRunning ? Icons.pause_rounded : Icons.play_arrow_rounded),
-                        size: 40,
-                        color: Colors.white,
-                     ),
+                    onPressed: () {
+                      if (timerProvider.isSetupMode) {
+                        timerProvider.startTimer();
+                      } else if (timerProvider.isRunning) {
+                        timerProvider.pauseTimer();
+                      } else {
+                        timerProvider.resumeTimer();
+                      }
+                    },
+                    backgroundColor: const Color(0xFF0F5257),
+                    shape: const CircleBorder(),
+                    elevation: 8,
+                    child: Icon(
+                      timerProvider.isSetupMode
+                          ? Icons.play_arrow
+                          : (timerProvider.isRunning ? Icons.pause_rounded : Icons.play_arrow_rounded),
+                      size: 40,
+                      color: Colors.white,
+                    ),
                   ),
-                 ),
-                 const SizedBox(height: 8),
-                 Text("START", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF0F5257).withValues(alpha: 0.8))),
+                ),
+                const SizedBox(height: 8),
+                Text('START', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF0F5257).withValues(alpha: 0.8))),
               ],
             ),
 
@@ -378,16 +327,16 @@ class _TimerScreenState extends State<TimerScreen> with TickerProviderStateMixin
             // Sound
             Column(
               children: [
-                 _buildCircleButton(
-                    icon: Icons.volume_up_rounded,
-                    onPressed: () {
-                       // Toggle sound
-                    },
-                    color: const Color(0xFFC8F3F0),
-                    iconColor: const Color(0xFF0F5257),
-                 ),
-                 const SizedBox(height: 8),
-                 Text("SOUND", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF0F5257).withValues(alpha: 0.8))),
+                _buildCircleButton(
+                  icon: Icons.volume_up_rounded,
+                  onPressed: () {
+                    // Toggle sound (no-op placeholder)
+                  },
+                  color: const Color(0xFFC8F3F0),
+                  iconColor: const Color(0xFF0F5257),
+                ),
+                const SizedBox(height: 8),
+                Text('SOUND', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF0F5257).withValues(alpha: 0.8))),
               ],
             ),
           ],
@@ -403,25 +352,25 @@ class _TimerScreenState extends State<TimerScreen> with TickerProviderStateMixin
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("What are you focusing on?"),
+        title: const Text('What are you focusing on?'),
         content: TextField(
           controller: _taskController,
           autofocus: true,
           decoration: const InputDecoration(
-            hintText: "Enter task type...",
+            hintText: 'Enter task type...',
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("CANCEL"),
+            child: const Text('CANCEL'),
           ),
           TextButton(
             onPressed: () {
-              timerProvider.setTaskType(_taskController.text.isEmpty ? "Focus Session" : _taskController.text);
+              timerProvider.setTaskType(_taskController.text);
               Navigator.pop(context);
             },
-            child: const Text("SAVE"),
+            child: const Text('SAVE'),
           ),
         ],
       ),

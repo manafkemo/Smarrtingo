@@ -139,7 +139,7 @@ class _HomeContentState extends State<HomeContent> {
       children: [
         // Header Section - Greeting & Date
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -280,27 +280,38 @@ class _HomeContentState extends State<HomeContent> {
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               Expanded(
                 child: filteredTasks.isEmpty
                     ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Image.asset(
-                              'assist/images/smarttingo-logo.png',
-                              width: 150,
-                              height: 150,
-                              fit: BoxFit.contain,
+                        child: SingleChildScrollView(
+                          physics: const BouncingScrollPhysics(),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Image.asset(
+                                  'assist/images/smarttingo-logo.png',
+                                  width: 90,
+                                  height: 90,
+                                  fit: BoxFit.contain,
+                                ),
+                                const SizedBox(height: 10),
+                                Text(
+                                  selectedCategory != null 
+                                      ? 'No Tasks In ${selectedCategory.name}'
+                                      : 'No Tasks Yet!',
+                                  style: TextStyle(
+                                    fontSize: 16, 
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.grey.withValues(alpha: 0.6),
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 16),
-                            Text(
-                              selectedCategory != null 
-                                  ? 'No Tasks In ${selectedCategory.name}'
-                                  : 'No Tasks Yet!',
-                              style: TextStyle(fontSize: 18, color: Colors.grey.withValues(alpha: 0.6)),
-                            ),
-                          ],
+                          ),
                         ),
                       )
                     : ListView.builder(
